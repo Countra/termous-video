@@ -20,10 +20,11 @@ def symbol_tools(env):
         tool = shutil.which(env.get("LLVM_" + name.upper(), "llvm-" + name), path=env.get("PATH"))
         if not tool:
             raise ValueError(f"Required LLVM tool not found: llvm-{name}")
+        tool = str(Path(tool).absolute())
         version = capture([tool, "--version"], BUILD_ROOT, env)
         match = re.search(r"(?:LLVM version|version) (\d+)", version)
         if not match or int(match[1]) < 18:
-            raise ValueError(f"LLVM 18 or newer is required: {tool}")
+            raise ValueError(f"LLVM 18 or newer is required: {tool}\nReported version:\n{version or '(empty)'}")
         result[name] = tool
     return result
 
@@ -44,9 +45,8 @@ def private_name(symbol, target):
     return PREFIX + symbol
 
 
-def isolate(sdk, target, env):
+def isolate(sdk, target, tools, env):
     sdk = Path(sdk)
-    tools = symbol_tools(env)
     definitions = {name: read_symbols(sdk / "lib" / name, tools, env, defined=True)
                    for name in ARCHIVES}
     originals = set().union(*definitions.values())

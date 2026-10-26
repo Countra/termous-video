@@ -19,6 +19,8 @@ OpenH264 保留 x64 NASM / ARM64 NEON；libyuv 保留 x64 SIMD 和 ARM64 NEON �
 - Linux：GCC/G++、NASM。只需系统开发工具，不需要 X11、音频或桌面采集依赖。
 - macOS：Apple Clang / Xcode Command Line Tools，ARM64 原生宿主。部署基线固定为 macOS 12。
 
+macOS 的符号工具使用 Homebrew LLVM，CI 显式设置 `LLVM_NM` 和 `LLVM_OBJCOPY` 为 `$(brew --prefix llvm)/bin/` 下的对应工具。手动构建时也可如此指定，避免选中 Xcode 自带的旧版同名工具；编译器仍由 `xcrun` 选择 Apple Clang。脚本在编译前校验并固定符号工具的绝对路径，后续 PATH 调整不会改变选择。
+
 先将工具加入当前终端 PATH，也可用 `CC` / `CXX` 指定现有编译器。脚本不安装工具、不修改系统 PATH。
 
 ```text

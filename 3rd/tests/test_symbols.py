@@ -21,11 +21,10 @@ class SymbolTests(unittest.TestCase):
             (sdk / "include").mkdir()
             for name in symbols.ARCHIVES:
                 (sdk / "lib" / name).write_bytes(b"original archive")
-            with patch.object(symbols, "symbol_tools", return_value={"nm": "nm", "objcopy": "objcopy"}), \
-                    patch.object(symbols, "read_symbols", return_value={"ARGBToI420"}), \
+            with patch.object(symbols, "read_symbols", return_value={"ARGBToI420"}), \
                     patch.object(symbols, "run"):
                 with self.assertRaisesRegex(ValueError, "Incomplete symbol isolation"):
-                    symbols.isolate(sdk, "linux/amd64", {})
+                    symbols.isolate(sdk, "linux/amd64", {"nm": "nm", "objcopy": "objcopy"}, {})
             for name in symbols.ARCHIVES:
                 self.assertEqual((sdk / "lib" / name).read_bytes(), b"original archive")
 
@@ -57,11 +56,10 @@ class SymbolTests(unittest.TestCase):
             def run(command, *args):
                 Path(command[-1]).write_bytes(b"private archive")
 
-            with patch.object(symbols, "symbol_tools", return_value={"nm": "nm", "objcopy": "objcopy"}), \
-                    patch.object(symbols, "read_symbols", side_effect=read), \
+            with patch.object(symbols, "read_symbols", side_effect=read), \
                     patch.object(symbols, "normalize_archive", return_value=0), \
                     patch.object(symbols, "run", side_effect=run), patch.object(symbols, "capture", return_value="LLVM 18"):
-                record = symbols.isolate(sdk, "windows/amd64", {})
+                record = symbols.isolate(sdk, "windows/amd64", {"nm": "nm", "objcopy": "objcopy"}, {})
             self.assertEqual(record["symbols"], 4)
             mapping = (sdk / "symbols/rename.map").read_text()
             self.assertNotIn("malloc", mapping)

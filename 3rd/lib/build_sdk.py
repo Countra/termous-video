@@ -12,13 +12,15 @@ from .sdk_install import install_sdk
 from .sdk_link import verify_link
 from .sdk_manifest import inventory, recipe_hash, source_record, verify_manifest
 from .sources import source_lock, verify_sources
-from .symbols import isolate
+from .symbols import isolate, symbol_tools
 
 
 def build_sdk(target, jobs, env):
     recipe = recipe_hash()
     lock = source_lock()
     verify_sources(env)
+    # 编译器探测会前置 Xcode 目录；提前固定符号工具，避免切换到其同名旧版本。
+    isolation_tools = symbol_tools(env)
     tools = toolchain(target, env)
     record = source_record(managed("logs/source-status.log"))
     expected = env.get("SOURCE_COMMIT")
@@ -41,7 +43,7 @@ def build_sdk(target, jobs, env):
     with tempfile.TemporaryDirectory(prefix="sdk-", dir=parent) as temporary:
         staged = Path(temporary)
         run([tools["cmake"], "--install", output, "--prefix", staged], "install-stage", env)
-        isolation = isolate(staged, target, env)
+        isolation = isolate(staged, target, isolation_tools, env)
         licenses = staged / "licenses"
         licenses.mkdir()
         for dependency, filename, name in (("openh264", "LICENSE", "OpenH264-LICENSE"),

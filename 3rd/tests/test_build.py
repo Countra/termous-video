@@ -25,6 +25,7 @@ class BuildTests(unittest.TestCase):
         changes = (
             patch.object(build_sdk, "managed", side_effect=lambda p: self.root / p),
             patch.object(build_sdk, "verify_sources"),
+            patch.object(build_sdk, "symbol_tools", return_value={"nm": "nm", "objcopy": "objcopy"}),
             patch.object(build_sdk, "toolchain", return_value=tools),
             patch.object(build_sdk, "source_record", return_value={"source_commit": None, "source_dirty": True}),
             patch.object(build_sdk, "recipe_hash", side_effect=["1" * 64, "2" * 64]),
@@ -42,7 +43,8 @@ class BuildTests(unittest.TestCase):
             install.assert_not_called()
 
     def test_publication_rejects_dirty_sources_before_compile(self):
-        with patch.object(build_sdk, "verify_sources"), patch.object(build_sdk, "toolchain"), \
+        with patch.object(build_sdk, "verify_sources"), patch.object(build_sdk, "symbol_tools"), \
+                patch.object(build_sdk, "toolchain"), \
                 patch.object(build_sdk, "source_record", return_value={"source_commit": "1" * 40, "source_dirty": True}), \
                 patch.object(build_sdk, "run") as run, \
                 self.assertRaisesRegex(ValueError, "clean working tree"):
