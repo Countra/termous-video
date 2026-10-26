@@ -64,6 +64,6 @@ macOS:   libopenh264.a libyuv.a -mmacosx-version-min=12.0 -lc++
 
 CI 固定来源提交，将每个文件 SHA256、依赖锁、配方摘要、工具链和验证结果记录在 `manifest.json`。发布 job 验证全部平台、来源一致性和目录范围后，用 `git commit -F` 提交 SDK 到独立分支并创建 PR。测试中的 Git/GitHub 操作均使用模拟，不创建真实 PR。
 
-本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。首次提交后推送至 `main` 才能启动 GitHub 构建；本地脚本不会自动提交或推送。
+本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。源码推送后，在 GitHub Actions 手动运行 **Build video SDK pull request** 才会构建和提交 SDK PR；push / PR 仅自动执行工具测试与已有 SDK 完整性检查。本地脚本不会自动提交或推送。
 
 当前 `termous-libwebrtc` 使用另一版 libyuv，并将其并入采集归档。将来把视频库与采集库链接进同一 Core 前，必须协调 libyuv 版本与归档边界并执行组合链接检查；本轮不修改两个已有库的 SDK。RDP 的 Intel Mac 支持也保持原状，未来迁移时须单独处理其 SDK 覆盖范围。

@@ -1,12 +1,6 @@
 name: Build video SDK pull request
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '3rd/**'
-      - '.gitattributes'
-      - '.github/workflows/build-native-sdk.yml'
   workflow_dispatch:
     inputs:
       target_branch:

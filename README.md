@@ -31,9 +31,11 @@ python 3rd/build.py build --jobs 8
 
 ## CI
 
-每次 push / PR 在三个平台执行离线工具测试，并校验仓库中已有 SDK 的文件完整性。该检查允许 SDK 暂时落后于待重建的源码配方；正式构建和发布仍要求当前配方与固定依赖完全匹配。`main` 上的 `3rd`、构建工作流或换行规则变更会自动构建三平台 SDK；也可手动运行 **Build video SDK pull request** 指定已有目标分支。
+每次 push / PR 在三个平台执行离线工具测试，并校验仓库中已有 SDK 的文件完整性。该检查允许 SDK 暂时落后于待重建的源码配方；正式构建和发布仍要求当前配方与固定依赖完全匹配。
 
-三平台从同一源码提交构建，全部完成普通 C 链接、全归档链接、真实 cgo 链接及合成画面转换/缩放/编码/解码检查后，统一创建 SDK PR。只修改 `sdk` 的 PR 合并不会再次触发 SDK 构建。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
+SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
+
+手动启动后，三平台从同一源码提交构建，全部完成普通 C 链接、全归档链接、真实 cgo 链接及合成画面转换/缩放/编码/解码检查后，统一创建 SDK PR。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
 
 GitHub 仓库需允许 Actions 创建 Pull Request（Settings → Actions → General），发布 job 使用仓库自带 `GITHUB_TOKEN`。其他 job 只有读取权限。
 
