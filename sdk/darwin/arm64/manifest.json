@@ -2,8 +2,8 @@
   "build_type": "Release",
   "files": {
     "README.md": {
-      "bytes": 362,
-      "sha256": "1e2d17a349af570cd3f4d86967422e87480c134bb879d752f8fd7d68a6ba4dea"
+      "bytes": 459,
+      "sha256": "087a24ffcfe69344d71a01904cca8b1c5eadce5a410fd4b4bb291fa86cf34e87"
     },
     "build-lock.json": {
       "bytes": 348,
@@ -109,6 +109,10 @@
       "bytes": 9069,
       "sha256": "58a7d2fe9c1ef224dc796175c4cf0df1a26885705e6b456765bdf895da077bb6"
     },
+    "include/termous_video_symbols.h": {
+      "bytes": 85086,
+      "sha256": "767e1f4aa5bfca21ea3d01722fc92c7e217f157b499f82c4509c878172323f2b"
+    },
     "include/wels/codec_api.h": {
       "bytes": 21178,
       "sha256": "21f29b20c24f7c7946f2e243d0bc2532fb3542f6c28af338209477e70d9036c9"
@@ -125,13 +129,13 @@
       "bytes": 420,
       "sha256": "9a241e20b7c9221a5786cccd9eae3afed91afba3525b5b9b16c2101976516f94"
     },
-    "lib/libopenh264.a": {
-      "bytes": 1584160,
-      "sha256": "31ac59be4e9633e1bb7ce9fb1a94f490a898bd09e6269fffc2f94ed5fb2686e7"
+    "lib/libtermous_video_openh264.a": {
+      "bytes": 1650648,
+      "sha256": "78dce94d45735597608f2c0ed3a3048c6c4ea8a7b1da711790f256033a506a85"
     },
-    "lib/libyuv.a": {
-      "bytes": 720808,
-      "sha256": "dc22c9da2903189b1b70190d4444da9911d0f21a6c4cd0980804cc8eaca26f21"
+    "lib/libtermous_video_yuv.a": {
+      "bytes": 768344,
+      "sha256": "b40f437b61c8a7f3294784f68a9cab7761c3a796d732948751ef759b513f377f"
     },
     "licenses/OpenH264-LICENSE": {
       "bytes": 1295,
@@ -144,14 +148,36 @@
     "licenses/libyuv-PATENTS": {
       "bytes": 1387,
       "sha256": "4da84211f947c6f9f7dd8fbce513e1522e01833407ae732b8c9a2bbb75fed495"
+    },
+    "symbols/rename.map": {
+      "bytes": 284048,
+      "sha256": "d5dfc357f47139ac77ec44008f4aa5df8c3fd987ccc8ddc07499d784a921ddd7"
     }
+  },
+  "isolation": {
+    "coff_bss_sections": 0,
+    "prefix": "termous_video_",
+    "symbols": 2930,
+    "tools": {
+      "nm": [
+        "llvm-nm, compatible with GNU nm",
+        "Homebrew LLVM version 23.1.0",
+        "  Optimized build."
+      ],
+      "objcopy": [
+        "llvm-objcopy, compatible with GNU objcopy",
+        "Homebrew LLVM version 23.1.0",
+        "  Optimized build."
+      ]
+    },
+    "version": 1
   },
   "library_type": "static",
   "platform": "darwin/arm64",
-  "recipe_sha256": "899d26be295c6f8d94842e9aae8043f8c817aa5b77cec1cb10aafadf8de41315",
-  "schema": 1,
+  "recipe_sha256": "0cfbcb86223053f8d2a0003b28376e3eaab4398be485b27a2cf0c4f4f957a5c3",
+  "schema": 2,
   "scope": "video_dependencies",
-  "source_commit": "7becfaa09c59331066830afd9652b0b4c0116e5c",
+  "source_commit": "2b50f5dcf076ebe81ef88d97194dd9089cd4e938",
   "source_dirty": false,
   "sources": {
     "libyuv": {

@@ -1,6 +1,8 @@
 # Video dependency SDK: windows/amd64
 
-Separate static archives: libopenh264.a and libyuv.a. Headers are in include/.
+Separate private static archives: libtermous_video_openh264.a and libtermous_video_yuv.a.
+
+Include termous_video_symbols.h before third-party headers. Headers are in include/.
 
 OpenH264 2.6.0 includes encoding and decoding; libyuv excludes JPEG. Both libraries retain architecture-specific SIMD paths.
 

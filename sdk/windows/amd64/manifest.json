@@ -2,8 +2,8 @@
   "build_type": "Release",
   "files": {
     "README.md": {
-      "bytes": 370,
-      "sha256": "f44de0db7928a3d7318b8cf978490a60adbf2144d54543517219475a6be82f21"
+      "bytes": 469,
+      "sha256": "5cec6c82688c164aa00f983967b7308076f662e88cdb52690b709bb4ad5f01b6"
     },
     "build-lock.json": {
       "bytes": 348,
@@ -109,6 +109,10 @@
       "bytes": 9069,
       "sha256": "58a7d2fe9c1ef224dc796175c4cf0df1a26885705e6b456765bdf895da077bb6"
     },
+    "include/termous_video_symbols.h": {
+      "bytes": 101894,
+      "sha256": "7e9e6c93f2c762dee162fd1c42fc13fda0d470bd6311ea736b74f7d1daf04e13"
+    },
     "include/wels/codec_api.h": {
       "bytes": 21178,
       "sha256": "21f29b20c24f7c7946f2e243d0bc2532fb3542f6c28af338209477e70d9036c9"
@@ -125,13 +129,13 @@
       "bytes": 420,
       "sha256": "9a241e20b7c9221a5786cccd9eae3afed91afba3525b5b9b16c2101976516f94"
     },
-    "lib/libopenh264.a": {
-      "bytes": 2285180,
-      "sha256": "0c83ae40e3b0329f1be8d1868463e11357228acba4c3e31a59cad5fd89d0ac1a"
+    "lib/libtermous_video_openh264.a": {
+      "bytes": 2314378,
+      "sha256": "17c1621d068c12071329579f9676b92cba7d6bd3e627646de86c0e0809e05432"
     },
-    "lib/libyuv.a": {
-      "bytes": 1440784,
-      "sha256": "7a7672767180f9e1584b34eb08a5643bfd2e4da7b929b7b509e845c5956d0eda"
+    "lib/libtermous_video_yuv.a": {
+      "bytes": 1490292,
+      "sha256": "83b5c9d9aa576d02cde8dd83f28323756a5c0f7e41babd9243827be5a39f97bc"
     },
     "licenses/OpenH264-LICENSE": {
       "bytes": 1295,
@@ -144,14 +148,38 @@
     "licenses/libyuv-PATENTS": {
       "bytes": 1387,
       "sha256": "4da84211f947c6f9f7dd8fbce513e1522e01833407ae732b8c9a2bbb75fed495"
+    },
+    "symbols/rename.map": {
+      "bytes": 390899,
+      "sha256": "ae00d5ceb9a24e4206bc643e5eec389d3cf85ac24325b002c7b331c6ae70efdf"
     }
+  },
+  "isolation": {
+    "coff_bss_sections": 5,
+    "prefix": "termous_video_",
+    "symbols": 4331,
+    "tools": {
+      "nm": [
+        "llvm-nm, compatible with GNU nm",
+        "LLVM (http://llvm.org/):",
+        "  LLVM version 22.1.8",
+        "  Optimized build."
+      ],
+      "objcopy": [
+        "llvm-objcopy, compatible with GNU objcopy",
+        "LLVM (http://llvm.org/):",
+        "  LLVM version 22.1.8",
+        "  Optimized build."
+      ]
+    },
+    "version": 1
   },
   "library_type": "static",
   "platform": "windows/amd64",
-  "recipe_sha256": "899d26be295c6f8d94842e9aae8043f8c817aa5b77cec1cb10aafadf8de41315",
-  "schema": 1,
+  "recipe_sha256": "0cfbcb86223053f8d2a0003b28376e3eaab4398be485b27a2cf0c4f4f957a5c3",
+  "schema": 2,
   "scope": "video_dependencies",
-  "source_commit": "7becfaa09c59331066830afd9652b0b4c0116e5c",
+  "source_commit": "2b50f5dcf076ebe81ef88d97194dd9089cd4e938",
   "source_dirty": false,
   "sources": {
     "libyuv": {
