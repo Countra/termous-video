@@ -70,6 +70,6 @@ macOS:   libtermous_video_openh264.a libtermous_video_yuv.a -mmacosx-version-min
 
 CI 固定来源提交，将每个文件 SHA256、依赖锁、配方摘要、工具链和验证结果记录在 `manifest.json`。发布 job 验证全部平台、来源一致性和目录范围后，用 `git commit -F` 提交 SDK 到独立分支并创建 PR。测试中的 Git/GitHub 操作均使用模拟，不创建真实 PR。
 
-本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。源码推送后，在 GitHub Actions 手动运行 **Build video SDK pull request** 才会构建和提交 SDK PR；push / PR 自动执行工具测试、已有 SDK 完整性检查、公共 Go API 测试、race 和原生链接检查，不构建 SDK。本地脚本不会自动提交或推送。公共 Go 库要求 schema 2 私有 SDK，迁移时必须先手动生成并合入新的 SDK PR。
+本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。源码推送后，在 GitHub Actions 手动运行 **Build video SDK pull request** 才会构建和提交 SDK PR；仅推送到 `main` 分支时自动执行工具测试、已有 SDK 完整性检查、公共 Go API 测试、race 和原生链接检查，其他分支推送和 PR 事件不自动触发。普通 CI 不构建 SDK，本地脚本不会自动提交或推送。公共 Go 库要求 schema 2 私有 SDK，迁移时必须先手动生成并合入新的 SDK PR。
 
 RDP 及采集库继续维护自己的依赖；video 私有符号与它们隔离，不依赖链接顺序或相同版本。组合产物仍需验证真实链接、动态依赖和合成画面，符号审计不能替代对应平台的运行验证。本轮 RDP 同步移除 Intel Mac，只保留与 video 一致的三个目标。

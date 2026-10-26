@@ -36,7 +36,7 @@ python scripts/check-coexist.py --rdp-sdk ../termous-rdp/sdk/windows/amd64
 
 ## CI
 
-每次 push / PR 在三个平台执行工具测试、SDK 完整性检查、关闭 cgo 的测试以及真实原生 Go 测试、race 和链接检查。普通 CI 不构建 SDK；首次切换私有符号需要先通过手动 SDK 工作流更新产物，旧 schema 1 SDK 无法链接新 Go 库。完整性审计仍可读取旧清单，但原生测试明确拒绝没有私有符号的 SDK。
+仅推送到 `main` 分支时自动在三个平台执行工具测试、SDK 完整性检查、关闭 cgo 的测试以及真实原生 Go 测试、race 和链接检查；其他分支推送和 PR 事件不自动触发。普通 CI 不构建 SDK；首次切换私有符号需要先通过手动 SDK 工作流更新产物，旧 schema 1 SDK 无法链接新 Go 库。完整性审计仍可读取旧清单，但原生测试明确拒绝没有私有符号的 SDK。
 
 SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
 
