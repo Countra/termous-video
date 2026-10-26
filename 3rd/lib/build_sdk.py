@@ -12,6 +12,7 @@ from .sdk_install import install_sdk
 from .sdk_link import verify_link
 from .sdk_manifest import inventory, recipe_hash, source_record, verify_manifest
 from .sources import source_lock, verify_sources
+from .symbols import isolate
 
 
 def build_sdk(target, jobs, env):
@@ -40,6 +41,7 @@ def build_sdk(target, jobs, env):
     with tempfile.TemporaryDirectory(prefix="sdk-", dir=parent) as temporary:
         staged = Path(temporary)
         run([tools["cmake"], "--install", output, "--prefix", staged], "install-stage", env)
+        isolation = isolate(staged, target, env)
         licenses = staged / "licenses"
         licenses.mkdir()
         for dependency, filename, name in (("openh264", "LICENSE", "OpenH264-LICENSE"),
@@ -49,7 +51,8 @@ def build_sdk(target, jobs, env):
         shutil.copyfile(TOOLS_ROOT / "build-lock.json", staged / "build-lock.json")
         (staged / "README.md").write_text(
             f"# Video dependency SDK: {target}\n\n"
-            "Separate static archives: libopenh264.a and libyuv.a. Headers are in include/.\n\n"
+            "Separate private static archives: libtermous_video_openh264.a and libtermous_video_yuv.a.\n\n"
+            "Include termous_video_symbols.h before third-party headers. Headers are in include/.\n\n"
             f"OpenH264 {lock['openh264']['version']} includes encoding and decoding; libyuv excludes JPEG. "
             "Both libraries retain architecture-specific SIMD paths.\n\n"
             "See the repository 3rd/README.md for compiler and linker requirements. "
@@ -58,7 +61,7 @@ def build_sdk(target, jobs, env):
         verify_sources(env)
         if source_record() != record or recipe_hash() != recipe:
             raise ValueError("Source checkout or build recipe changed during the build")
-        data = {"schema": 1, "scope": "video_dependencies", "platform": target,
+        data = {"schema": 2, "isolation": isolation, "scope": "video_dependencies", "platform": target,
                 "library_type": "static", "build_type": "Release", "sources": lock,
                 "recipe_sha256": recipe, "verification": verification, **record,
                 "toolchain": {key: capture([tools[key], "--version"], BUILD_ROOT, env).splitlines()[0]

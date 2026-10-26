@@ -1,4 +1,4 @@
-name: Check video SDK tooling
+name: Check video library
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [windows-2025, ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
@@ -31,3 +31,26 @@ jobs:
         run: python -B -m unittest discover -s 3rd/tests -v
       - name: Verify installed SDK integrity
         run: python 3rd/sdk.py audit
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test without cgo
+        env:
+          CGO_ENABLED: "0"
+        run: go test ./...
+      - name: Set up Windows compiler
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-python
+      - name: Test native library and race boundaries (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python scripts/check.py --link --race
+      - name: Test native library and race boundaries (Unix)
+        if: runner.os != 'Windows'
+        run: python scripts/check.py --link --race

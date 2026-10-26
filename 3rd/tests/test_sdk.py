@@ -24,9 +24,10 @@ COMMIT = "1" * 40
 
 def fixture(directory, target):
     files = {
-        "lib/libopenh264.a": b"!<arch>\n", "lib/libyuv.a": b"!<arch>\n",
+        "lib/libtermous_video_openh264.a": b"!<arch>\n", "lib/libtermous_video_yuv.a": b"!<arch>\n",
         "include/wels/codec_api.h": b"api", "include/wels/codec_app_def.h": b"app",
         "include/wels/codec_def.h": b"def", "include/wels/codec_ver.h": b"version",
+        "include/termous_video_symbols.h": b"prefix", "symbols/rename.map": b"A termous_video_A\n",
         "include/libyuv.h": b"yuv", "include/libyuv/convert.h": b"convert",
         "licenses/OpenH264-LICENSE": b"license", "licenses/libyuv-LICENSE": b"license",
         "licenses/libyuv-PATENTS": b"patents", "README.md": b"sdk",
@@ -36,9 +37,9 @@ def fixture(directory, target):
         path = directory / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-    data = {"schema": 1, "platform": target, "scope": "video_dependencies", "build_type": "Release",
+    data = {"schema": 2, "platform": target, "scope": "video_dependencies", "build_type": "Release",
             "library_type": "static", "sources": source_lock(), "source_commit": COMMIT,
-            "source_dirty": False, "recipe_sha256": sdk_manifest.recipe_hash(),
+            "source_dirty": False, "isolation": {"version": 1, "prefix": "termous_video_", "symbols": 1}, "recipe_sha256": sdk_manifest.recipe_hash(),
             "verification": {"c_link": True, "whole_archive_link": True, "cgo_link": True,
                              "synthetic_smoke": True, "desktop_captured": False},
             "files": sdk_manifest.inventory(directory)}
@@ -95,7 +96,7 @@ class SDKTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "digest"):
             sdk_manifest.verify_manifest(staged, TARGETS[0])
         fixture(staged, TARGETS[0])
-        (staged / "lib/libyuv.a").unlink()
+        (staged / "lib/libtermous_video_yuv.a").unlink()
         with self.assertRaises(ValueError):
             sdk_manifest.verify_manifest(staged, TARGETS[0])
 
@@ -114,7 +115,7 @@ class SDKTests(unittest.TestCase):
     def test_rejects_dynamic_and_thin_libraries_even_with_updated_digest(self):
         staged = self.build / "sdk"
         fixture(staged, TARGETS[0])
-        for name, content in (("lib/openh264.dll", b"dll"), ("lib/libyuv.a", b"!<thin>\n")):
+        for name, content in (("lib/openh264.dll", b"dll"), ("lib/libtermous_video_yuv.a", b"!<thin>\n")):
             with self.subTest(name=name):
                 path = staged / name
                 path.write_bytes(content)
@@ -160,13 +161,13 @@ class SDKTests(unittest.TestCase):
     def test_installed_sdk_audit_detects_corruption(self):
         installed = self.root / "sdk" / TARGETS[0]
         fixture(installed, TARGETS[0])
-        (installed / "lib/libyuv.a").write_bytes(b"broken")
+        (installed / "lib/libtermous_video_yuv.a").write_bytes(b"broken")
         with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaisesRegex(ValueError, "digest"):
             sdk_entry.audit_installed()
 
     def test_malformed_metadata_has_explicit_error(self):
         staged = self.build / "sdk"
-        for metadata in ([], None, {"schema": 1}):
+        for metadata in ([], None, {"schema": 2}):
             with self.subTest(metadata=metadata):
                 fixture(staged, TARGETS[0])
                 (staged / "manifest.json").write_text(json.dumps(metadata))

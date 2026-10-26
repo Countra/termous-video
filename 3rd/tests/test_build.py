@@ -31,6 +31,7 @@ class BuildTests(unittest.TestCase):
             patch.object(build_sdk, "run"),
             patch.object(build_sdk.shutil, "copyfile"),
             patch.object(build_sdk, "verify_link", return_value={}),
+            patch.object(build_sdk, "isolate", return_value={}),
         )
         for change in changes:
             change.start()

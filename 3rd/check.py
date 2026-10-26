@@ -13,7 +13,7 @@ from lib.sources import source_lock
 
 def main():
     source_lock()
-    files = sorted(TOOLS_ROOT.rglob("*.py"))
+    files = sorted([*TOOLS_ROOT.rglob("*.py"), *(PROJECT_ROOT / "scripts").rglob("*.py")])
     for path in files:
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     # 配方只编译固定源码，不允许意外引入上游脚本执行或配置时下载。

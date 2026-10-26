@@ -10,6 +10,7 @@ from pathlib import Path
 from .layout import PROJECT_ROOT, TOOLS_ROOT
 from .platforms import TARGETS
 from .sources import source_lock, validate_source_lock
+from .symbols import ARCHIVES, HEADER, PREFIX
 
 
 def checked_files(directory):
@@ -36,6 +37,7 @@ def checked_files(directory):
 
 
 def inventory(directory):
+    directory = Path(directory).absolute()
     return {p.relative_to(directory).as_posix(): {"sha256": sha256(p), "bytes": p.stat().st_size}
             for p in checked_files(directory) if p != directory / "manifest.json"}
 
@@ -74,7 +76,7 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     directory = Path(directory).absolute()
     payload = inventory(directory)
     data = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") != 1 or data.get("platform") != target
+    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") not in (1, 2) or data.get("platform") != target
             or data.get("scope") != "video_dependencies" or data.get("library_type") != "static"
             or data.get("build_type") != "Release"):
         raise ValueError("SDK target, scope or build format mismatch")
@@ -100,20 +102,33 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
             not re.fullmatch(r"[0-9a-f]{40}", source_commit)
             or data.get("source_commit") != source_commit or data.get("source_dirty") is not False):
         raise ValueError("SDK was not built from the selected clean commit")
-    required = {"lib/libopenh264.a", "lib/libyuv.a", "include/wels/codec_api.h",
+    isolated = data["schema"] == 2
+    libraries = tuple(ARCHIVES.values()) if isolated else tuple(ARCHIVES)
+    if current_recipe and not isolated:
+        raise ValueError("SDK has no private symbols; run the manual SDK workflow")
+    if isolated:
+        isolation = data.get("isolation", {})
+        if (not isinstance(isolation, dict) or isolation.get("version") != 1
+                or isolation.get("prefix") != PREFIX or type(isolation.get("symbols")) is not int
+                or isolation["symbols"] < 1):
+            raise ValueError("SDK symbol isolation metadata is invalid")
+    required = {"include/wels/codec_api.h",
                 "include/wels/codec_app_def.h", "include/wels/codec_def.h", "include/wels/codec_ver.h",
                 "include/libyuv.h", "include/libyuv/convert.h", "README.md", "build-lock.json",
                 "licenses/OpenH264-LICENSE", "licenses/libyuv-LICENSE", "licenses/libyuv-PATENTS"}
+    required.update("lib/" + name for name in libraries)
+    if isolated:
+        required.update(("include/" + HEADER, "symbols/rename.map"))
     if not required <= payload.keys():
         raise ValueError("SDK is missing required libraries, headers or licenses")
     for name in payload:
-        if not (name.startswith(("include/", "lib/", "licenses/")) or name in ("README.md", "build-lock.json")):
+        if not (name.startswith(("include/", "lib/", "licenses/")) or name in ("README.md", "build-lock.json", "symbols/rename.map")):
             raise ValueError(f"Unexpected SDK file: {name}")
-        if name.startswith("lib/") and name not in ("lib/libopenh264.a", "lib/libyuv.a"):
+        if name.startswith("lib/") and name not in {"lib/" + library for library in libraries}:
             raise ValueError(f"Unexpected SDK library: {name}")
         if re.search(r"\.(dll|exe|so|dylib)(\.|$)", name, re.IGNORECASE):
             raise ValueError(f"Dynamic libraries and executables are not allowed: {name}")
-    for name in ("libopenh264.a", "libyuv.a"):
+    for name in libraries:
         with (directory / "lib" / name).open("rb") as stream:
             if stream.read(8) != b"!<arch>\n":
                 raise ValueError(f"Not a self-contained static archive: {name}")

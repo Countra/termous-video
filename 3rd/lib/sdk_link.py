@@ -6,6 +6,7 @@ import shutil
 from .layout import BUILD_ROOT, TOOLS_ROOT, managed
 from .platforms import link_flags
 from .process import capture, run
+from .symbols import ARCHIVES, HEADER
 
 
 def dynamic_dependencies(binary, target, tools, env):
@@ -16,6 +17,10 @@ def dynamic_dependencies(binary, target, tools, env):
     else:
         output = capture([tools["inspect"], "-p", binary], BUILD_ROOT, env)
         if target.startswith("windows/"):
+            sections = capture([tools["inspect"], "-h", binary], BUILD_ROOT, env)
+            bss = re.search(r"^\s*\d+\s+\.bss\s+\S+\s+\S+\s+\S+\s+([0-9a-fA-F]+)", sections, re.MULTILINE)
+            if bss and int(bss[1], 16):
+                raise RuntimeError("COFF BSS was written to the executable; check SDK symbol isolation")
             libraries = re.findall(r"DLL Name:\s*(\S+)", output)
             allowed = {"kernel32.dll", "msvcrt.dll", "ucrtbase.dll", "advapi32.dll", "user32.dll",
                        "shell32.dll", "ws2_32.dll", "ntdll.dll", "bcrypt.dll"}
@@ -34,9 +39,9 @@ def dynamic_dependencies(binary, target, tools, env):
 def verify_link(sdk, target, tools, env):
     check = managed(f"checks/{target}")
     check.mkdir(parents=True, exist_ok=True)
-    includes = ["-I", str(sdk / "include")]
+    includes = ["-I", str(sdk / "include"), "-include", str(sdk / "include" / HEADER)]
     flags = link_flags(target)
-    archives = [(sdk / "lib" / name).as_posix() for name in ("libopenh264.a", "libyuv.a")]
+    archives = [(sdk / "lib" / name).as_posix() for name in ARCHIVES.values()]
     compile_flags = ["-mmacosx-version-min=12.0"] if target.startswith("darwin/") else []
     run([tools["cxx"], "-std=c++17", "-O2", *compile_flags, *includes, "-c",
          TOOLS_ROOT / "checks/smoke.cc", "-o", check / "smoke.o"], "smoke-cpp", env)
@@ -53,7 +58,7 @@ def verify_link(sdk, target, tools, env):
         run([binary], label + "-run", env, timeout=30)
     cgo = check / "cgo"
     cgo.mkdir(exist_ok=True)
-    shutil.copyfile(TOOLS_ROOT / "checks/cgo_main.go", cgo / "main.go")
+    shutil.copyfile(TOOLS_ROOT / "checks/cgo_main.go.in", cgo / "main.go")
     shutil.copyfile(TOOLS_ROOT / "checks/smoke.cc", cgo / "smoke.cc")
     (cgo / "go.mod").write_text("module termous/video/sdkcheck\n\ngo 1.24.0\n", encoding="utf-8")
     # Go 缓存尊重调用端统一设置；未设置时只在本仓库 build 内补齐默认值。
@@ -66,7 +71,7 @@ def verify_link(sdk, target, tools, env):
             go_env[name] = str(directory)
     go_env.update(CGO_ENABLED="1", CC=tools["cc"], CXX=tools["cxx"], GOWORK="off",
                   GOTOOLCHAIN="local", GOFLAGS="", GOOS=target.split("/")[0], GOARCH=target.split("/")[1],
-                  CGO_CPPFLAGS=f'"-I{(sdk / "include").as_posix()}"',
+                  CGO_CPPFLAGS=f'"-I{(sdk / "include").as_posix()}" -include "{(sdk / "include" / HEADER).as_posix()}"',
                   CGO_CFLAGS=" ".join(compile_flags), CGO_CXXFLAGS="-std=c++17 " + " ".join(compile_flags),
                   CGO_LDFLAGS=" ".join([*(f'"{p}"' for p in archives), *flags]))
     binary = check / ("sdk-cgo-link" + suffix)
