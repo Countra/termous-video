@@ -1,0 +1,44 @@
+# 固定 libyuv 通用编译单元，架构扩展在独立配方中选择。
+set(LIBYUV_COMMON
+  ${YUV_ROOT}/source/compare.cc
+  ${YUV_ROOT}/source/compare_common.cc
+  ${YUV_ROOT}/source/compare_gcc.cc
+  ${YUV_ROOT}/source/compare_wasm.cc
+  ${YUV_ROOT}/source/compare_win.cc
+  ${YUV_ROOT}/source/convert.cc
+  ${YUV_ROOT}/source/convert_argb.cc
+  ${YUV_ROOT}/source/convert_from.cc
+  ${YUV_ROOT}/source/convert_from_argb.cc
+  ${YUV_ROOT}/source/convert_jpeg.cc
+  ${YUV_ROOT}/source/convert_to_argb.cc
+  ${YUV_ROOT}/source/convert_to_i420.cc
+  ${YUV_ROOT}/source/cpu_id.cc
+  ${YUV_ROOT}/source/mjpeg_decoder.cc
+  ${YUV_ROOT}/source/mjpeg_validate.cc
+  ${YUV_ROOT}/source/planar_functions.cc
+  ${YUV_ROOT}/source/rotate.cc
+  ${YUV_ROOT}/source/rotate_any.cc
+  ${YUV_ROOT}/source/rotate_argb.cc
+  ${YUV_ROOT}/source/rotate_common.cc
+  ${YUV_ROOT}/source/rotate_gcc.cc
+  ${YUV_ROOT}/source/rotate_rvv.cc
+  ${YUV_ROOT}/source/rotate_wasm.cc
+  ${YUV_ROOT}/source/rotate_win.cc
+  ${YUV_ROOT}/source/row_any.cc
+  ${YUV_ROOT}/source/row_common.cc
+  ${YUV_ROOT}/source/row_gcc.cc
+  ${YUV_ROOT}/source/row_rvv.cc
+  ${YUV_ROOT}/source/row_wasm.cc
+  ${YUV_ROOT}/source/row_win.cc
+  ${YUV_ROOT}/source/scale.cc
+  ${YUV_ROOT}/source/scale_any.cc
+  ${YUV_ROOT}/source/scale_argb.cc
+  ${YUV_ROOT}/source/scale_common.cc
+  ${YUV_ROOT}/source/scale_gcc.cc
+  ${YUV_ROOT}/source/scale_rgb.cc
+  ${YUV_ROOT}/source/scale_rvv.cc
+  ${YUV_ROOT}/source/scale_uv.cc
+  ${YUV_ROOT}/source/scale_wasm.cc
+  ${YUV_ROOT}/source/scale_win.cc
+  ${YUV_ROOT}/source/video_common.cc
+)

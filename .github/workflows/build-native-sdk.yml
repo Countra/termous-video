@@ -1,0 +1,164 @@
+name: Build video SDK pull request
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '3rd/**'
+      - '.gitattributes'
+      - '.github/workflows/build-native-sdk.yml'
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Existing SDK PR base branch; empty uses the selected workflow branch"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-sdk-${{ inputs.target_branch || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      branch: ${{ steps.source.outputs.branch }}
+      sha: ${{ steps.source.outputs.sha }}
+      proposal_timestamp: ${{ steps.source.outputs.proposal_timestamp }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.12"
+      - name: Resolve source commit and PR base
+        id: source
+        env:
+          INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+        run: python 3rd/ci/publish-sdk.py resolve
+
+  build:
+    needs: resolve
+    name: SDK ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows/amd64
+            artifact: windows-amd64
+            runner: windows-2025
+          - target: linux/amd64
+            artifact: linux-amd64
+            runner: ubuntu-24.04
+          - target: darwin/arm64
+            artifact: darwin-arm64
+            runner: macos-15
+    env:
+      SDK_TARGET: ${{ matrix.target }}
+      SOURCE_COMMIT: ${{ needs.resolve.outputs.sha }}
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Set up Windows MinGW toolchain
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          update: false
+          install: >-
+            git mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja mingw-w64-x86_64-nasm mingw-w64-x86_64-python
+      - name: Set up Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential cmake ninja-build nasm
+      - name: Set up macOS toolchain
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          brew install cmake ninja
+          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        if: runner.os != 'Windows'
+        with:
+          python-version: "3.12"
+      - name: Build and verify static SDK (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          python 3rd/check.py
+          python -B -m unittest discover -s 3rd/tests -v
+          python 3rd/build.py prepare --target "$SDK_TARGET"
+          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4
+      - name: Build and verify static SDK (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          python 3rd/check.py
+          python -B -m unittest discover -s 3rd/tests -v
+          python 3rd/build.py prepare --target "$SDK_TARGET"
+          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4
+      - name: Upload verified SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sdk-${{ matrix.artifact }}
+          path: sdk/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-logs-${{ matrix.artifact }}
+          path: build/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: [resolve, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      TARGET_BRANCH: ${{ needs.resolve.outputs.branch }}
+      SOURCE_COMMIT: ${{ needs.resolve.outputs.sha }}
+      PROPOSAL_TIMESTAMP: ${{ needs.resolve.outputs.proposal_timestamp }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-sdk-*
+          path: build/incoming
+      - name: Verify and assemble SDKs from the same commit
+        run: python 3rd/sdk.py assemble --artifacts-dir build/incoming --source-commit "$SOURCE_COMMIT"
+      - name: Open SDK pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python 3rd/ci/publish-sdk.py publish

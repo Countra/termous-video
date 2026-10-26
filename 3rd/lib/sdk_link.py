@@ -1,0 +1,78 @@
+"""验证 GCC C 链接、全归档链接、真实 cgo 及合成画面编解码。"""
+
+import re
+import shutil
+
+from .layout import BUILD_ROOT, TOOLS_ROOT, managed
+from .platforms import link_flags
+from .process import capture, run
+
+
+def dynamic_dependencies(binary, target, tools, env):
+    if target.startswith("darwin/"):
+        output = capture([tools["inspect"], "-L", binary], BUILD_ROOT, env)
+        libraries = re.findall(r"^\s+(\S+) \(compatibility version", output, re.MULTILINE)
+        valid = libraries and all(p.startswith(("/usr/lib/", "/System/Library/")) for p in libraries)
+    else:
+        output = capture([tools["inspect"], "-p", binary], BUILD_ROOT, env)
+        if target.startswith("windows/"):
+            libraries = re.findall(r"DLL Name:\s*(\S+)", output)
+            allowed = {"kernel32.dll", "msvcrt.dll", "ucrtbase.dll", "advapi32.dll", "user32.dll",
+                       "shell32.dll", "ws2_32.dll", "ntdll.dll", "bcrypt.dll"}
+            valid = libraries and all(name.lower() in allowed or name.lower().startswith("api-ms-win-")
+                                      for name in libraries)
+        else:
+            libraries = re.findall(r"NEEDED\s+(\S+)", output)
+            allowed = {"libc.so.6", "libm.so.6", "libpthread.so.0", "libdl.so.2", "librt.so.1",
+                       "libgcc_s.so.1", "ld-linux-x86-64.so.2"}
+            valid = libraries and all(name in allowed for name in libraries)
+    if not valid:
+        raise RuntimeError(f"Unexpected dynamic dependencies: {libraries}")
+    return libraries
+
+
+def verify_link(sdk, target, tools, env):
+    check = managed(f"checks/{target}")
+    check.mkdir(parents=True, exist_ok=True)
+    includes = ["-I", str(sdk / "include")]
+    flags = link_flags(target)
+    archives = [(sdk / "lib" / name).as_posix() for name in ("libopenh264.a", "libyuv.a")]
+    compile_flags = ["-mmacosx-version-min=12.0"] if target.startswith("darwin/") else []
+    run([tools["cxx"], "-std=c++17", "-O2", *compile_flags, *includes, "-c",
+         TOOLS_ROOT / "checks/smoke.cc", "-o", check / "smoke.o"], "smoke-cpp", env)
+    run([tools["cc"], *compile_flags, "-c", TOOLS_ROOT / "checks/caller.c", "-o", check / "caller.o"],
+        "smoke-c", env)
+    suffix = ".exe" if target.startswith("windows/") else ""
+    dependencies = set()
+    whole = ([flag for archive in archives for flag in ("-Xlinker", "-force_load", "-Xlinker", archive)]
+             if target.startswith("darwin/") else ["-Wl,--whole-archive", *archives, "-Wl,--no-whole-archive"])
+    for label, libraries in (("sdk-c-link", archives), ("sdk-whole-link", whole)):
+        binary = check / (label + suffix)
+        run([tools["cc"], check / "caller.o", check / "smoke.o", *libraries, *flags, "-o", binary], label, env)
+        dependencies.update(dynamic_dependencies(binary, target, tools, env))
+        run([binary], label + "-run", env, timeout=30)
+    cgo = check / "cgo"
+    cgo.mkdir(exist_ok=True)
+    shutil.copyfile(TOOLS_ROOT / "checks/cgo_main.go", cgo / "main.go")
+    shutil.copyfile(TOOLS_ROOT / "checks/smoke.cc", cgo / "smoke.cc")
+    (cgo / "go.mod").write_text("module termous/video/sdkcheck\n\ngo 1.24.0\n", encoding="utf-8")
+    # Go 缓存尊重调用端统一设置；未设置时只在本仓库 build 内补齐默认值。
+    go_env = env.copy()
+    for name, relative in (("GOCACHE", "cache/go/build"), ("GOMODCACHE", "cache/go/mod"),
+                           ("GOTMPDIR", "cache/go/tmp")):
+        if not go_env.get(name):
+            directory = managed(relative)
+            directory.mkdir(parents=True, exist_ok=True)
+            go_env[name] = str(directory)
+    go_env.update(CGO_ENABLED="1", CC=tools["cc"], CXX=tools["cxx"], GOWORK="off",
+                  GOTOOLCHAIN="local", GOFLAGS="", GOOS=target.split("/")[0], GOARCH=target.split("/")[1],
+                  CGO_CPPFLAGS=f'"-I{(sdk / "include").as_posix()}"',
+                  CGO_CFLAGS=" ".join(compile_flags), CGO_CXXFLAGS="-std=c++17 " + " ".join(compile_flags),
+                  CGO_LDFLAGS=" ".join([*(f'"{p}"' for p in archives), *flags]))
+    binary = check / ("sdk-cgo-link" + suffix)
+    run([tools["go"], "build", "-o", binary, "."], "sdk-cgo-link", go_env, cgo)
+    dependencies.update(dynamic_dependencies(binary, target, tools, env))
+    run([binary], "sdk-cgo-run", env, timeout=30)
+    return {"c_link": True, "whole_archive_link": True, "cgo_link": True,
+            "synthetic_smoke": True, "desktop_captured": False,
+            "system_dependencies": sorted(dependencies)}

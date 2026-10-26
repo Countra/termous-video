@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.a -text
+# SDK 清单按原始字节校验，提交与检出不能转换头文件或说明文件的换行。
+/sdk/** -text

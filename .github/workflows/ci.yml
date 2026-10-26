@@ -1,0 +1,33 @@
+name: Check video SDK tooling
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tooling:
+    name: Tooling (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: "3.12"
+      - name: Check Python and build recipes
+        run: python 3rd/check.py
+      - name: Test source validation and SDK publication
+        run: python -B -m unittest discover -s 3rd/tests -v
+      - name: Verify installed SDK integrity
+        run: python 3rd/sdk.py audit
