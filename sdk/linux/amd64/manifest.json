@@ -1,0 +1,187 @@
+{
+  "build_type": "Release",
+  "files": {
+    "README.md": {
+      "bytes": 361,
+      "sha256": "4928d1a091730ac04bc5669ac17ac43cbc97a3553280f5a2ba9bd9ecc4cef8d5"
+    },
+    "build-lock.json": {
+      "bytes": 348,
+      "sha256": "26d38c83283fff58cc73518301a65445359a7e1875e0165d7f08ad133bf6b67e"
+    },
+    "include/libyuv.h": {
+      "bytes": 1042,
+      "sha256": "99cb1f2d71c66a582ce00f20cd3a952ce4ab55dd3d112959f1b7032227682667"
+    },
+    "include/libyuv/basic_types.h": {
+      "bytes": 1142,
+      "sha256": "111feb6efca25634e1bb83a480b6e391fb3c1e1fd874cd06876bb3c642d43603"
+    },
+    "include/libyuv/compare.h": {
+      "bytes": 3448,
+      "sha256": "299c820baee3969ed7ad5c0292ebcd3a677c8984efb2b661eba164f5c69062b1"
+    },
+    "include/libyuv/compare_row.h": {
+      "bytes": 5552,
+      "sha256": "15cc47e19d15a750bd448da2fbade34af01519695894613cb6937ca7efc2dc7a"
+    },
+    "include/libyuv/convert.h": {
+      "bytes": 37887,
+      "sha256": "ebd6b25a1b9af4682ffcc2c8f4ba58546f961494317771aa38268838abac0eec"
+    },
+    "include/libyuv/convert_argb.h": {
+      "bytes": 80175,
+      "sha256": "1c65689742461b28cc4afcbd40425fd81f7706f58d9fd9741099633f0e151c73"
+    },
+    "include/libyuv/convert_from.h": {
+      "bytes": 8193,
+      "sha256": "cda3db991c6b6460f323a347fa779133b06c7528ef755b509effa03653b66556"
+    },
+    "include/libyuv/convert_from_argb.h": {
+      "bytes": 20530,
+      "sha256": "2ab677eaa64d19842b1a4b556dddbeb112b40f05cfda54195dc597263f205d50"
+    },
+    "include/libyuv/cpu_id.h": {
+      "bytes": 5322,
+      "sha256": "5331c993f427b723014106fec6394fb4b84e545a285478baca00eb4a4e67d990"
+    },
+    "include/libyuv/cpu_support.h": {
+      "bytes": 3348,
+      "sha256": "decd0204806ed11d936a141440d5674e1215cf0a39e90dcb9f43b57418f08021"
+    },
+    "include/libyuv/loongson_intrinsics.h": {
+      "bytes": 97940,
+      "sha256": "1953c9de27c4cb43d3c94da046bf9d3204796ff140169849c8b98e1d6ffab56c"
+    },
+    "include/libyuv/mjpeg_decoder.h": {
+      "bytes": 5890,
+      "sha256": "318e7e4cc814630a89b5208372d2a29171cccab3e0c88e2b982b88267ed1deba"
+    },
+    "include/libyuv/planar_functions.h": {
+      "bytes": 36121,
+      "sha256": "d4d3a22d3a4831d5c05f2f2b930b1c58a9f83caca1155d0d1291980ae053ec76"
+    },
+    "include/libyuv/rotate.h": {
+      "bytes": 9103,
+      "sha256": "c9086fef29acd2cefbe5bb0f4a4e22a95d2308d0ffc81d3f1a88e2bb1ae07b79"
+    },
+    "include/libyuv/rotate_argb.h": {
+      "bytes": 1036,
+      "sha256": "a2601d5dd9aaf79a62864ad410da6689c9b2ae22bfc25b3e22cec105fd34393e"
+    },
+    "include/libyuv/rotate_row.h": {
+      "bytes": 18039,
+      "sha256": "279d125fcd81093080a904fb863c4398927abcd7584a86a40086fda1e9e72a63"
+    },
+    "include/libyuv/row.h": {
+      "bytes": 339186,
+      "sha256": "a202b2419cfd81adaecd13b8e8947c79e4d7a36d846a23da0eabd7295b77a6dc"
+    },
+    "include/libyuv/row_sve.h": {
+      "bytes": 114290,
+      "sha256": "f02057a73239e505f2dfd9e02b74018f29e5bcc185c57e7a3f3b64667aa8c10c"
+    },
+    "include/libyuv/scale.h": {
+      "bytes": 12970,
+      "sha256": "d78f6b29752d3632fe318e9cbabda36e81868e1b30c91f18b0aac8ab8d5e914f"
+    },
+    "include/libyuv/scale_argb.h": {
+      "bytes": 2465,
+      "sha256": "934c36cd77c43138dbb8062ca52f2e69b277923823cbbf6cec698ef92953862b"
+    },
+    "include/libyuv/scale_rgb.h": {
+      "bytes": 1273,
+      "sha256": "e57ac7ff7bb73ae65ee243480641d5b6cec08b102d7bdd0b6edc9e7ea6e9c8f2"
+    },
+    "include/libyuv/scale_row.h": {
+      "bytes": 88349,
+      "sha256": "40796d0ef0feaf671da33f2e4530ac4a14022e1cd2c4318008bd2b3a02b570b0"
+    },
+    "include/libyuv/scale_uv.h": {
+      "bytes": 1445,
+      "sha256": "aa7a7124d83f52e8eb3732f42b98e97bf777ceee54e6ea2bba8d9a1ea11b2ab2"
+    },
+    "include/libyuv/version.h": {
+      "bytes": 544,
+      "sha256": "b20c66234ed252274a2757efde327971bb12776a8c45b2bcb6b565c4e4700a1f"
+    },
+    "include/libyuv/video_common.h": {
+      "bytes": 9069,
+      "sha256": "58a7d2fe9c1ef224dc796175c4cf0df1a26885705e6b456765bdf895da077bb6"
+    },
+    "include/wels/codec_api.h": {
+      "bytes": 21178,
+      "sha256": "21f29b20c24f7c7946f2e243d0bc2532fb3542f6c28af338209477e70d9036c9"
+    },
+    "include/wels/codec_app_def.h": {
+      "bytes": 33380,
+      "sha256": "a40581a24263866dca19911928f7bc4eb354ff78d9dd56dbf0f55fc4fd923726"
+    },
+    "include/wels/codec_def.h": {
+      "bytes": 7630,
+      "sha256": "f974d269b5935e8dc7265b8bfc02f60e5185b4d6165d30541d2758a4506f1979"
+    },
+    "include/wels/codec_ver.h": {
+      "bytes": 420,
+      "sha256": "9a241e20b7c9221a5786cccd9eae3afed91afba3525b5b9b16c2101976516f94"
+    },
+    "lib/libopenh264.a": {
+      "bytes": 2321998,
+      "sha256": "94360a36517eb5528ec89a4e6ea67e107a7069e0f0546f0e2ba938f530493293"
+    },
+    "lib/libyuv.a": {
+      "bytes": 1392146,
+      "sha256": "aaefcfc1b2a854482b16ba89db0d2ef6140eda66f130e66b46622f518bf85cb8"
+    },
+    "licenses/OpenH264-LICENSE": {
+      "bytes": 1295,
+      "sha256": "dd5c1c9668512530fa5a96e4c29ac4033d70a7eeb0eed7a42fddb6dd794ebdbb"
+    },
+    "licenses/libyuv-LICENSE": {
+      "bytes": 1506,
+      "sha256": "2b2cc1180c7e6988328ad2033b04b80117419db9c4c584918bbb3cfec7e9364f"
+    },
+    "licenses/libyuv-PATENTS": {
+      "bytes": 1387,
+      "sha256": "4da84211f947c6f9f7dd8fbce513e1522e01833407ae732b8c9a2bbb75fed495"
+    }
+  },
+  "library_type": "static",
+  "platform": "linux/amd64",
+  "recipe_sha256": "899d26be295c6f8d94842e9aae8043f8c817aa5b77cec1cb10aafadf8de41315",
+  "schema": 1,
+  "scope": "video_dependencies",
+  "source_commit": "7becfaa09c59331066830afd9652b0b4c0116e5c",
+  "source_dirty": false,
+  "sources": {
+    "libyuv": {
+      "revision": "eeb06a6451ba2e21f8ff272c7b42fc62b9faecc5",
+      "url": "https://chromium.googlesource.com/libyuv/libyuv",
+      "version": "main-2026-10-09"
+    },
+    "openh264": {
+      "revision": "652bdb7719f30b52b08e506645a7322ff1b2cc6f",
+      "url": "https://github.com/cisco/openh264.git",
+      "version": "2.6.0"
+    },
+    "schema": 1
+  },
+  "toolchain": {
+    "cc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "cmake": "cmake version 3.31.6",
+    "cxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  },
+  "verification": {
+    "c_link": true,
+    "cgo_link": true,
+    "desktop_captured": false,
+    "synthetic_smoke": true,
+    "system_dependencies": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libgcc_s.so.1",
+      "libm.so.6"
+    ],
+    "whole_archive_link": true
+  }
+}
