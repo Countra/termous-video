@@ -52,7 +52,7 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 源码、覆盖层、依赖安装前缀、构建输出、日志和测试程序全部留在本仓库 `build` 内。Go 缓存尊重已有 `GOCACHE`／`GOMODCACHE`／`GOTMPDIR`，本工作区继续使用 `TEMP/go`。不改 pnpm 缓存。
 
-覆盖层仅把 D3D11 的 `spirv-cross-c-shared` 依赖改为静态 `spirv-cross-c`；原始源码保持干净。libplacebo 配置使用 `--wrap-mode=nodownload` 和显式关闭的可选功能，构建不会自动获取未锁定依赖。
+覆盖层把 D3D11 的 `spirv-cross-c-shared` 依赖改为静态 `spirv-cross-c`，并将 glslang 绑定到本次安装的三份静态归档；原始源码保持干净。Meson 的静态 `find_library` 不使用 `cpp_link_args` 中的 `-L` 搜索目录，因此这里使用已校验的绝对路径，既避免 macOS 找不到库，也避免意外选中系统安装的同名库或 SPIRV-Tools。libplacebo 配置使用 `--wrap-mode=nodownload` 和显式关闭的可选功能，构建不会自动获取未锁定依赖。
 
 重复构建会刷新 CMake 配置，并重新建立 libplacebo 的 Meson 输出目录，确保当前编译器、静态选项与依赖路径生效；不会沿用旧机器配置。源码下载缓存保留，CMake 依赖的对象产物仍可按构建工具判定复用。
 
@@ -84,6 +84,6 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 Windows amd64 已使用 MinGW64 GCC 完成静态构建、C／全归档／cgo 调用，以及与现有私有 OpenH264、libyuv 的全归档共同链接。D3D11 WARP 和 NVIDIA GeForce RTX 4060 Ti 均通过三轮合成 scRGB→SDR 渲染；测试确认 D3D11、DXGI、D3DCompiler 47 从 Windows 系统目录加载。动态导入只有系统库，没有 MSYS 或额外的第三方运行时 DLL。
 
-现有视频库的原生测试、race 与最终链接回归通过；三平台已有编解码 SDK 的完整性校验通过。Python 工具测试运行 57 项，56 项通过，1 项因本机无法创建符号链接而跳过。Linux、macOS 的配方完成静态检查，尚未实际编译或运行，需由三平台手动 SDK CI 补齐记录。
+现有视频库的原生测试、race 与最终链接回归通过；三平台已有编解码 SDK 的完整性校验通过。Python 工具测试运行 59 项，58 项通过，1 项因本机无法创建符号链接而跳过。Linux、macOS 的配方完成静态检查，尚未在本机实际编译或运行，需由三平台手动 SDK CI 补齐记录。
 
 本机组件产物留在 `build/install/placebo/windows/amd64/verified-*/placebo`；既有 `sdk/` 文件未替换。渲染结果见 `build/checks/placebo/windows/amd64/result.json`，硬件和 WARP 日志分别为 `build/logs/placebo-hardware-render.log`、`build/logs/placebo-c-render.log`。

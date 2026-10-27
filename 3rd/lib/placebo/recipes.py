@@ -6,6 +6,7 @@ import sys
 
 from ..layout import TOOLS_ROOT, managed
 from ..process import run
+from .layout import GLSLANG_ARCHIVES
 from .sources import source_lock
 
 
@@ -60,10 +61,27 @@ def overlay_sources():
     path.write_text(text.replace(original,
                     "dependency('spirv-cross-c', version: '>=0.29.0', static: true, required: d3d11)"),
                     encoding="utf-8")
+    path = overlay / "src/glsl/meson.build"
+    text = path.read_text(encoding="utf-8")
+    start = "elif not glslang_req.disabled()\n"
+    end = "\nendif\n\ncomponents.set('glslang', glslang.found())"
+    if text.count(start) != 1 or text.count(end) != 1 or text.index(start) >= text.index(end):
+        raise ValueError("Pinned libplacebo glslang dependency declaration changed")
+    before, body = text.split(start)
+    _, after = body.split(end)
+    # find_library 的静态查找不会使用 cpp_link_args 的 -L，且可能混入系统同名库。
+    # 固定版本只需要这三份归档；直接传入路径，不探测旧版或可选的系统依赖。
+    path.write_text(before + start + "\n  glslang = declare_dependency(\n"
+                    "    link_args: meson.get_external_property('termous_glslang_libraries'),\n"
+                    "  )\n" + end + after, encoding="utf-8")
     return overlay
 
 
 def meson_build(target, prefix, tools, env, jobs):
+    libraries = [prefix / "lib" / name for name in GLSLANG_ARCHIVES]
+    for path in [*libraries, prefix / "include/glslang/build_info.h"]:
+        if not path.is_file():
+            raise ValueError(f"Pinned glslang installation is incomplete: {path}")
     source = overlay_sources()
     output = managed(f"out/{target}/placebo/libplacebo")
     config = managed(f"out/{target}/placebo/native.ini")
@@ -89,7 +107,8 @@ def meson_build(target, prefix, tools, env, jobs):
         f"{key} = {literal(value)}" for key, value in
         (("c", tools["cc"]), ("cpp", tools["cxx"]), ("python", sys.executable), ("pkg-config", tools["pkgconfig"])))
         + "\n[built-in options]\n" + "\n".join(f"{key} = {array(value)}" for key, value in
-          (("c_args", flags), ("cpp_args", flags), ("c_link_args", link), ("cpp_link_args", link))) + "\n",
+          (("c_args", flags), ("cpp_args", flags), ("c_link_args", link), ("cpp_link_args", link)))
+        + "\n[properties]\ntermous_glslang_libraries = " + array(libraries) + "\n",
         encoding="utf-8")
     build_env = env.copy()
     build_env["PYTHONPATH"] = os.pathsep.join(str(managed(f"sources/{name}/src"))

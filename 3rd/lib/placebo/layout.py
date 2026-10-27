@@ -2,6 +2,8 @@
 
 from ..platforms import link_flags
 
+GLSLANG_ARCHIVES = ("libSPIRV.a", "libglslang.a", "libglslang-default-resource-limits.a")
+
 
 def archives(target):
     result = ["libplacebo.a"]
@@ -13,7 +15,7 @@ def archives(target):
                    "libspirv-cross-core.a"]
     elif target != "linux/amd64":
         raise ValueError(f"Unsupported libplacebo target: {target}")
-    result += ["libSPIRV.a", "libglslang.a", "libglslang-default-resource-limits.a"]
+    result += GLSLANG_ARCHIVES
     if target == "windows/amd64":
         result.append("libplacebo_ucrt_math.a")
     return result
