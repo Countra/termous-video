@@ -35,6 +35,8 @@ python scripts/check.py --link --race
 python scripts/check-coexist.py --rdp-sdk ../termous-rdp/sdk/windows/amd64
 ```
 
+`scripts/check.py` 先通过 Go 的构建预演检查三平台 cgo 参数，再执行本机原生测试；参数检查也可单独运行 `python scripts/check-cgo.py`。macOS 的 Go 调用层统一使用 13.0 部署目标，SDK 归档继续兼容 12.0。
+
 最后一条命令使用本机目标对应的 RDP SDK，验证两种链接顺序下入口相互独立且编解码正常；Linux/macOS 请替换 SDK 路径。RDP 的测试入口已自动执行该检查。详细工具链要求、缓存配置和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建，不在 Windows 上交叉编译其他平台。
 
 ## CI

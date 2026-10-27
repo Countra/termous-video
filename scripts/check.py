@@ -25,6 +25,9 @@ def go_environment(sdk, target):
     env = os.environ.copy()
     digest = hashlib.sha256((sdk / "manifest.json").read_bytes()).hexdigest()
     env.update(CGO_ENABLED="1", GOTOOLCHAIN="local")
+    if target.startswith("darwin/"):
+        # 同时约束 runtime/cgo 的编译，避免继承 runner 系统版本而高于最终链接目标。
+        env["MACOSX_DEPLOYMENT_TARGET"] = "13.0"
     env["CGO_CXXFLAGS"] = env.get("CGO_CXXFLAGS", "") + f' "-I{(sdk / "include").as_posix()}" -DTERMOUS_VIDEO_SDK_{digest}=1'
     env["CGO_CFLAGS"] = env.get("CGO_CFLAGS", "") + f' -DTERMOUS_VIDEO_SDK_{digest}=1'
     env["TERMOUS_VIDEO_REQUIRE_COLOR"] = "0" if env.get("PLACEBO_ALLOW_NO_GPU") == "1" else "1"
@@ -41,6 +44,8 @@ def main():
     target = host_target()
     sdk = (args.sdk_dir or ROOT / "sdk" / target).resolve()
     env = go_environment(sdk, target)
+    subprocess.run([sys.executable, str(ROOT / "scripts/check-cgo.py")],
+                   cwd=ROOT, check=True, timeout=120)
     output = ROOT / "build/checks/go" / target
     output.mkdir(parents=True, exist_ok=True)
     packages = ["./frame", "./convert", "./h264", "./color", "./internal/..."]

@@ -23,6 +23,9 @@ spec.loader.exec_module(sdk_entry)
 spec = importlib.util.spec_from_file_location("placebo_entry", TOOLS.parent / "scripts/check-placebo.py")
 placebo_entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(placebo_entry)
+spec = importlib.util.spec_from_file_location("go_entry", TOOLS.parent / "scripts/check.py")
+go_entry = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(go_entry)
 COMMIT = "1" * 40
 
 
@@ -77,6 +80,18 @@ class SDKTests(unittest.TestCase):
                     sdk_manifest.verify_manifest(self.root / "sdk" / target, target, COMMIT)
                     self.assertFalse(staged.exists())
                     self.assertFalse((self.build / "sdk-backup" / target).exists())
+
+    def test_go_checks_use_go_macos_baseline_without_changing_other_targets(self):
+        for target in TARGETS:
+            with self.subTest(target=target):
+                sdk = self.build / target
+                fixture(sdk, target)
+                # 模拟 runner 默认版本比项目基线高；非 macOS 检查不修改此环境设置。
+                with patch.dict(go_entry.os.environ, {"MACOSX_DEPLOYMENT_TARGET": "15.0"}):
+                    env = go_entry.go_environment(sdk, target)
+                    self.assertEqual(env["MACOSX_DEPLOYMENT_TARGET"],
+                                     "13.0" if target.startswith("darwin/") else "15.0")
+                    self.assertEqual(go_entry.os.environ["MACOSX_DEPLOYMENT_TARGET"], "15.0")
 
     def test_failed_replace_restores_old_sdk(self):
         target = "darwin/arm64"
