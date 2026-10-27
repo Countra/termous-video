@@ -74,6 +74,19 @@ def overlay_sources():
     path.write_text(before + start + "\n  glslang = declare_dependency(\n"
                     "    link_args: meson.get_external_property('termous_glslang_libraries'),\n"
                     "  )\n" + end + after, encoding="utf-8")
+    path = overlay / "src/vulkan/gpu.c"
+    text = path.read_text(encoding="utf-8")
+    original = "    if (copy_props.copyDstLayoutCount || copy_props.copySrcLayoutCount) {"
+    if text.count(original) != 1:
+        raise ValueError("Pinned libplacebo host image copy initialization changed")
+    # 使用局部查询的 driverID，覆盖自行创建及外部导入的 Vulkan 设备。
+    path.write_text(text.replace(original,
+                    "    // MoltenVK 的主机纹理路径会触发 Apple 虚拟 GPU 的 replaceRegion 崩溃。\n"
+                    "    // 保留空的主机复制布局，使上传和回读使用已有的 GPU 缓冲区传输。\n"
+                    "    if (driver_props.driverID == VK_DRIVER_ID_MOLTENVK) {\n"
+                    '        PL_INFO(gpu, "Using buffer transfers for MoltenVK host image uploads and downloads");\n'
+                    "    } else if (copy_props.copyDstLayoutCount || copy_props.copySrcLayoutCount) {"),
+                    encoding="utf-8")
     # 上游生成命令会重设 PYTHONPATH，必须填充它实际使用的子模块目录。
     for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
         generator_source = managed(f"sources/{name}/src")

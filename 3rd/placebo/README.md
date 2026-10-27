@@ -36,6 +36,10 @@ MoltenVK 使用本仓库的窄 CMake 配方，保留上游模块划分、Metal �
 
 MoltenVK 1.4.2 为保留 macOS 12 基线的固定选择，不自动跟随上游替代方案或提高最低系统版本。
 
+当前固定版本对 MoltenVK 禁用 libplacebo 的可选 host image copy 优化。CI 调用栈显示，Apple 虚拟 GPU 在 `vkBindImageMemory → MVKImagePlane::updateMTLTextureContent → replaceRegion` 路径崩溃：带 `HOST_TRANSFER` 的图像被限定为 CPU 可访问内存，绑定时触发 Metal 主机纹理更新。覆盖层根据实际查询的 `VK_DRIVER_ID_MOLTENVK` 保留空的主机复制布局，使纹理上传和回读走 libplacebo 已有的缓冲区传输路径；自行创建和外部导入的 Vulkan 设备均适用。其他 Vulkan 驱动保持原行为。
+
+该兼容处理进入生成的 `libplacebo.a`，不依赖 CI 环境变量，不关闭 GPU 渲染或 HDR→SDR，也不修改公开 API。代价是 MoltenVK 不使用主机直接复制图像的优化；色彩转换和纹理传输仍由 GPU 执行。上游升级后应重新评估此补丁，不能仅凭原生 Apple GPU 可用就推断虚拟 GPU 同样可用。
+
 ## 构建与批准
 
 需要现有 Python 3.12+、CMake 3.24+、Ninja、Git、Meson 1.3+、pkg-config 和对应平台编译器。统一 SDK 构建仍需原有 NASM、LLVM、Go。脚本不安装工具、不改系统 PATH。Jinja／MarkupSafe 使用固定源码的纯 Python 模块，复制到覆盖层中上游生成器实际使用的 `3rdparty/<依赖>/src`；不执行安装器。配置前使用 `python -S` 禁用系统 `site-packages`，校验模块加载位置与模板渲染，不依赖机器预装的 Jinja。
@@ -72,6 +76,7 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 - Windows 强制 WARP 保证无独显 runner 也能执行着色器；本地可另运行 `build/checks/placebo/windows/amd64/c.exe --hardware` 验证硬件。
 - Linux CI 安装系统 Mesa Vulkan 驱动并执行合成测试，不依赖桌面会话。
 - macOS 先独立探测系统 Metal；仅系统没有可用 Metal 设备、且明确设置 `PLACEBO_ALLOW_NO_GPU=1` 时记录 `hdr_render=unavailable`。设备存在时，MoltenVK／libplacebo 初始化、着色器、转换或读取失败均使测试失败，C／cgo 链接和 API 测试始终必需。
+- macOS 在创建输入和输出纹理后，检查实际 Vulkan usage 不包含 `HOST_TRANSFER`，再执行相同的合成渲染与像素校验，防止兼容补丁遗漏或只在测试环境生效。
 - 动态导入白名单和静态归档格式检查；拒绝 SDK 内的 DLL、so、dylib、可执行文件和 thin archive。
 
 结果在 `build/checks/placebo/<平台>/result.json`，详细日志在 `build/logs/placebo-*.log`。cgo 缓存键包含 SDK 头文件和静态库内容摘要，原地更新 SDK 后会重新链接。测试只使用合成数据，不读取桌面，也不创建显示窗口。这证明 SDK 能执行转换，不代表真实 HDR 桌面链路已经修复或完成画质／性能验收。
@@ -90,6 +95,6 @@ Windows amd64 已使用 MinGW64 GCC 完成静态构建、C／全归档／cgo 调
 
 前轮已完成现有视频库的原生测试、race、最终链接回归和三平台编解码 SDK 完整性校验。本轮补齐 Windows Vulkan-Headers 后，重新完成 Windows 组件构建、C／全归档／cgo 链接和 WARP 合成渲染。Python 工具测试运行 65 项，64 项通过，1 项因本机无法创建符号链接而跳过。GLSL 和 Vulkan 源码生成器已在 `python -S` 禁用系统包的条件下执行通过，产物位于 `build/checks/placebo/generators-isolated`。
 
-Linux、macOS 的配方完成静态检查，本机没有这两个平台的运行环境。Linux 生成器修复仍待 CI 完整构建确认。macOS CI 已通过 C／全归档链接及 API 验证，但合成渲染发生 SIGSEGV；现有日志不足以定位根因，已补齐阶段日志与自动调用栈采集，尚不能宣称 macOS 渲染问题已修复。
+Linux、macOS 的配方完成静态检查，本机没有这两个平台的运行环境。Linux 生成器修复仍待 CI 完整构建确认。macOS CI 已通过 C／全归档链接及 API 验证；后续调用栈将 SIGSEGV 定位到 Apple 虚拟 GPU 的主机纹理更新路径，已加入上述缓冲区传输兼容处理。本轮重新通过 Windows 组件构建、C／全归档／cgo 链接与 WARP 渲染，以及 65 项 Python 测试（1 项符号链接权限跳过）。补丁生成后的 Vulkan GPU 源文件使用锁定头文件通过 Windows 编译器语法检查；这不等于 macOS 编译或运行验收，修复效果仍需下一轮 macOS CI 验证。
 
 本机组件产物留在 `build/install/placebo/windows/amd64/verified-*/placebo`；既有 `sdk/` 文件未替换。渲染结果见 `build/checks/placebo/windows/amd64/result.json`，硬件和 WARP 日志分别为 `build/logs/placebo-hardware-render.log`、`build/logs/placebo-c-render.log`。

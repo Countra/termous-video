@@ -192,6 +192,11 @@ class PlaceboTests(unittest.TestCase):
                             "  glslang = cxx.find_library('SPIRV')\n"
                             "endif\n\ncomponents.set('glslang', glslang.found())\n")
         glslang.write_text(glslang_original)
+        vulkan = self.root / "sources/libplacebo/src/vulkan/gpu.c"
+        vulkan.parent.mkdir(parents=True)
+        vulkan_original = ("    if (copy_props.copyDstLayoutCount || copy_props.copySrcLayoutCount) {\n"
+                           "        query_copy_layouts();\n    }\n")
+        vulkan.write_text(vulkan_original)
         for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
             module = self.root / "sources" / name / "src" / package / "__init__.py"
             module.parent.mkdir(parents=True)
@@ -200,10 +205,14 @@ class PlaceboTests(unittest.TestCase):
             overlay = recipes.overlay_sources()
             self.assertEqual(source.read_text(), original)
             self.assertEqual(glslang.read_text(), glslang_original)
+            self.assertEqual(vulkan.read_text(), vulkan_original)
             self.assertIn("static: true", (overlay / "src/d3d11/meson.build").read_text())
             patched = (overlay / "src/glsl/meson.build").read_text()
             self.assertNotIn("find_library", patched)
             self.assertIn("meson.get_external_property('termous_glslang_libraries')", patched)
+            vulkan_patched = (overlay / "src/vulkan/gpu.c").read_text(encoding="utf-8")
+            self.assertIn("driver_props.driverID == VK_DRIVER_ID_MOLTENVK", vulkan_patched)
+            self.assertIn("else " + vulkan_original.lstrip(), vulkan_patched)
             for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
                 relative = f"{name}/src/{package}/__init__.py"
                 self.assertEqual((overlay / "3rdparty" / relative).read_bytes(),
@@ -217,6 +226,11 @@ class PlaceboTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "glslang dependency declaration changed"):
                 recipes.overlay_sources()
             glslang.write_text(glslang_original)
+            for changed in ("unexpected upstream change", vulkan_original * 2):
+                vulkan.write_text(changed)
+                with self.assertRaisesRegex(ValueError, "host image copy initialization changed"):
+                    recipes.overlay_sources()
+            vulkan.write_text(vulkan_original)
             (self.root / "sources/jinja/src/jinja2/__init__.py").unlink()
             with self.assertRaisesRegex(ValueError, "Pinned Python generator source is missing: jinja"):
                 recipes.overlay_sources()

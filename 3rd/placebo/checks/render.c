@@ -41,6 +41,17 @@ int placebo_render_check(pl_gpu gpu, pl_log log)
     int result = 3;
     if (!input || !target || !renderer)
         goto cleanup;
+#ifdef __APPLE__
+    // SDK 必须实际使用缓冲区传输，不能仅在 CI 通过环境变量绕过主机纹理路径。
+    VkImageUsageFlags input_usage = 0, target_usage = 0;
+    if (!pl_vulkan_unwrap(gpu, input, NULL, &input_usage) ||
+        !pl_vulkan_unwrap(gpu, target, NULL, &target_usage) ||
+        ((input_usage | target_usage) & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT)) {
+        fputs("MoltenVK textures must use buffer transfers instead of host image copies\n", stderr);
+        goto cleanup;
+    }
+    fputs("HDR check: MoltenVK buffer transfer textures verified\n", stderr);
+#endif
     struct pl_frame src = {
         .num_planes = 1,
         .planes = {{.texture = input, .components = 4, .component_mapping = {0, 1, 2, 3}}},
