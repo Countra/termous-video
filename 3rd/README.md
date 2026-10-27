@@ -7,16 +7,18 @@
 - OpenH264 2.6.0：`652bdb7719f30b52b08e506645a7322ff1b2cc6f`。
 - libyuv：`eeb06a6451ba2e21f8ff272c7b42fc62b9faecc5`。
 
-`prepare` 只下载并检出源码；已有来源被修改时拒绝覆盖。`build` 只验证并使用已有源码，不隐式下载。构建使用本仓库的 CMake 配方和固定编译单元清单，不执行下载源码中的 Makefile、CMakeLists、版本生成脚本或依赖安装器。
+`prepare` 只下载并检出源码；已有来源被修改时拒绝覆盖。`build` 只验证并使用已有源码，不隐式下载。OpenH264／libyuv 使用本仓库的 CMake 配方和固定编译单元清单，不执行它们的上游构建脚本。
+
+libplacebo 使用独立的 `placebo-lock.json` 和已审查的固定版本上游构建入口，执行前校验 `placebo/upstream-review.json` 的批准摘要；不是自动批准下载内容。具体依赖、后端、静态链接和验证边界见 [libplacebo 构建说明](placebo/README.md)。统一 SDK 安装仍是单次事务，任何必需检查失败都不会替换旧 SDK。
 
 OpenH264 保留 x64 NASM / ARM64 NEON；libyuv 保留 x64 SIMD 和 ARM64 NEON 分派，禁用 JPEG 依赖，Apple Silicon 不编译 SVE/SME 内核。更新依赖时需重新核对源文件清单、架构宏和合成画面测试。
 
 ## 工具链
 
-通用要求：Python 3.12+、Git、CMake 3.20+、Ninja、Go 1.27.1、LLVM 18+ 的 `llvm-nm` 和 `llvm-objcopy`。LLVM 只处理 SDK 归档和符号，普通 Go 调用方不需要安装它；可通过 `LLVM_NM` / `LLVM_OBJCOPY` 指定工具路径。
+通用要求：Python 3.12+、Git、CMake 3.24+、Ninja、Meson 1.3+、pkg-config、Go 1.27.1、LLVM 18+ 的 `llvm-nm` 和 `llvm-objcopy`。LLVM 只处理 SDK 归档和符号，普通 Go 调用方不需要安装它；可通过 `LLVM_NM` / `LLVM_OBJCOPY` 指定工具路径。
 
 - Windows：MSYS2 **MINGW64** 的 GCC/G++、CMake、Ninja、NASM 和 Python；或已有同 ABI 工具链的 PowerShell 环境。不要使用 MSVC、clang-cl、UCRT64 或 MSYS GCC。
-- Linux：GCC/G++、NASM。只需系统开发工具，不需要 X11、音频或桌面采集依赖。
+- Linux：GCC/G++、NASM；libplacebo 合成测试还需要系统 Vulkan loader 和可用驱动，CI 使用 Mesa 软件 Vulkan。不需要 X11、音频或桌面采集依赖。
 - macOS：Apple Clang / Xcode Command Line Tools，ARM64 原生宿主。部署基线固定为 macOS 12。
 
 macOS 的符号工具使用 Homebrew LLVM，CI 显式设置 `LLVM_NM` 和 `LLVM_OBJCOPY` 为 `$(brew --prefix llvm)/bin/` 下的对应工具。手动构建时也可如此指定，避免选中 Xcode 自带的旧版同名工具；编译器仍由 `xcrun` 选择 Apple Clang。脚本在编译前校验并固定符号工具的绝对路径，后续 PATH 调整不会改变选择。
@@ -25,7 +27,7 @@ macOS 的符号工具使用 Homebrew LLVM，CI 显式设置 `LLVM_NM` 和 `LLVM_
 
 ```text
 python 3rd/build.py prepare --target windows/amd64
-python 3rd/build.py build --target windows/amd64 --jobs 8
+python 3rd/build.py build --target windows/amd64 --jobs 8 --accepted-review-sha256 e335368b11c4c48e9d9b45964336cf11679b0adf42814c4a5025afe93987423b
 python 3rd/sdk.py verify --sdk-dir sdk/windows/amd64 --target windows/amd64
 python 3rd/sdk.py audit
 ```
@@ -46,7 +48,7 @@ GOTMPDIR=D:/Item/vibe_coding/termous/TEMP/go/tmp
 
 ## 验证与安装
 
-构建顺序：验证源码 → 配置与编译 → 临时安装 → 私有符号隔离 → C / 全归档 / cgo 链接 → 合成画面运行 → 动态依赖检查 → 生成清单 → 替换 SDK。旧 SDK 在新版本通过检查前保持可用，目录替换失败时恢复旧目录；存在遗留备份时停止并报告，不自动删除。
+构建顺序：验证源码和上游脚本批准摘要 → 配置与编译 → 临时安装 → 编解码依赖私有符号隔离 → C / 全归档 / cgo 链接 → 合成画面运行 → libplacebo 组件构建与测试 → 动态依赖检查 → 生成清单 → 替换 SDK。旧 SDK 在新版本通过检查前保持可用，目录替换失败时恢复旧目录；存在遗留备份时停止并报告，不自动删除。
 
 隔离工具读取两个归档自身定义的外部符号，生成确定性的 `symbols/rename.map`，将定义和内部引用统一改写为 `termous_video_` 前缀，系统及运行时的外部引用保持原名。C 接口映射写入 `include/termous_video_symbols.h`，必须在第三方头文件之前包含。两个独立归档分别安装为 `libtermous_video_openh264.a`、`libtermous_video_yuv.a`，不合并，未隔离产物仅留在构建缓存。schema 2 清单记录隔离规则版本、工具版本、符号数量和文件摘要。
 

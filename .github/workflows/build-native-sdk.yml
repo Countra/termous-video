@@ -18,6 +18,7 @@ concurrency:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
+  ACCEPTED_PLACEBO_REVIEW: "e335368b11c4c48e9d9b45964336cf11679b0adf42814c4a5025afe93987423b"
 
 jobs:
   resolve:
@@ -42,7 +43,7 @@ jobs:
     needs: resolve
     name: SDK ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -60,6 +61,7 @@ jobs:
       SDK_TARGET: ${{ matrix.target }}
       SOURCE_COMMIT: ${{ needs.resolve.outputs.sha }}
       CGO_ENABLED: "1"
+      PLACEBO_ALLOW_NO_GPU: ${{ matrix.target == 'darwin/arm64' && '1' || '0' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -79,11 +81,12 @@ jobs:
           install: >-
             git mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja mingw-w64-x86_64-nasm mingw-w64-x86_64-python mingw-w64-x86_64-llvm
+            mingw-w64-x86_64-meson mingw-w64-x86_64-pkgconf
       - name: Set up Linux toolchain
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y build-essential cmake ninja-build nasm llvm-18
+          sudo apt-get install --no-install-recommends -y build-essential cmake ninja-build nasm llvm-18 meson pkg-config mesa-vulkan-drivers libvulkan1
           echo "LLVM_NM=llvm-nm-18" >> "$GITHUB_ENV"
           echo "LLVM_OBJCOPY=llvm-objcopy-18" >> "$GITHUB_ENV"
       - name: Set up macOS toolchain
@@ -91,7 +94,7 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: |
-          brew install cmake ninja llvm
+          brew install cmake ninja llvm meson pkgconf
           video_llvm_bin="$(brew --prefix llvm)/bin"
           echo "LLVM_NM=$video_llvm_bin/llvm-nm" >> "$GITHUB_ENV"
           echo "LLVM_OBJCOPY=$video_llvm_bin/llvm-objcopy" >> "$GITHUB_ENV"
@@ -109,7 +112,7 @@ jobs:
           python 3rd/check.py
           python -B -m unittest discover -s 3rd/tests -v
           python 3rd/build.py prepare --target "$SDK_TARGET"
-          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4
+          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4 --accepted-review-sha256 "$ACCEPTED_PLACEBO_REVIEW"
           python scripts/check.py --link
       - name: Build and verify static SDK (Linux / macOS)
         if: runner.os != 'Windows'
@@ -118,7 +121,7 @@ jobs:
           python 3rd/check.py
           python -B -m unittest discover -s 3rd/tests -v
           python 3rd/build.py prepare --target "$SDK_TARGET"
-          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4
+          python 3rd/build.py build --target "$SDK_TARGET" --jobs 4 --accepted-review-sha256 "$ACCEPTED_PLACEBO_REVIEW"
           python scripts/check.py --link
       - name: Upload verified SDK
         uses: actions/upload-artifact@v4
@@ -126,6 +129,16 @@ jobs:
           name: native-sdk-${{ matrix.artifact }}
           path: sdk/${{ matrix.target }}/
           if-no-files-found: error
+          retention-days: 7
+      - name: Upload rendering verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: placebo-checks-${{ matrix.artifact }}
+          path: |
+            build/checks/placebo/**/result.json
+            build/logs/placebo-*.log
+          if-no-files-found: ignore
           retention-days: 7
       - name: Upload failure logs
         if: failure()

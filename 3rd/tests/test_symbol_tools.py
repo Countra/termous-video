@@ -72,6 +72,7 @@ class SymbolToolTests(unittest.TestCase):
 
         with patch.object(symbols, "capture", side_effect=self.version), \
                 patch.object(build_sdk, "verify_sources"), \
+                patch.object(build_sdk, "verify_review"), \
                 patch.object(build_sdk, "toolchain", side_effect=compiler), \
                 patch.object(build_sdk, "source_record", return_value={"source_commit": None, "source_dirty": True}), \
                 patch.object(build_sdk, "managed", side_effect=lambda p: self.root / p), \

@@ -9,15 +9,21 @@ sys.pycache_prefix = str(Path(__file__).resolve().parent.parent / "build/cache/p
 
 from lib.layout import PROJECT_ROOT, TOOLS_ROOT
 from lib.sources import source_lock
+from lib.placebo.sources import source_lock as placebo_lock
+from lib.placebo.review import REVIEW, review_digest
+import json
 
 
 def main():
     source_lock()
+    if json.loads(REVIEW.read_text(encoding="utf-8"))["sources"] != placebo_lock():
+        raise ValueError("libplacebo review must match the dependency lock")
     files = sorted([*TOOLS_ROOT.rglob("*.py"), *(PROJECT_ROOT / "scripts").rglob("*.py")])
     for path in files:
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     # 配方只编译固定源码，不允许意外引入上游脚本执行或配置时下载。
-    for path in [TOOLS_ROOT / "CMakeLists.txt", *sorted((TOOLS_ROOT / "cmake").glob("*.cmake"))]:
+    for path in [TOOLS_ROOT / "CMakeLists.txt", *sorted((TOOLS_ROOT / "cmake").glob("*.cmake")),
+                 *sorted((TOOLS_ROOT / "placebo").rglob("CMakeLists.txt"))]:
         text = path.read_text(encoding="utf-8")
         if re.search(r"\b(execute_process|externalproject_add|fetchcontent_\w+|add_subdirectory)\s*\(", text, re.IGNORECASE):
             raise ValueError(f"Unexpected external build entry in {path.name}")
@@ -27,6 +33,8 @@ def main():
     for target in ("windows/amd64", "linux/amd64", "darwin/arm64"):
         if f"target: {target}" not in workflow:
             raise ValueError(f"CI matrix is missing {target}")
+    if f'ACCEPTED_PLACEBO_REVIEW: "{review_digest()}"' not in workflow:
+        raise ValueError("SDK workflow review digest does not match the approved libplacebo inputs")
     print(f"Static checks passed: {len(files)} Python files and three SDK targets")
 
 

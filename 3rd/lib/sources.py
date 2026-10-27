@@ -54,7 +54,12 @@ def verify_source(name, item, env):
 
 
 def prepare(env):
-    for name, item in source_lock().items():
+    prepare_sources(source_lock(), env)
+    print("Pinned sources prepared; no upstream build scripts were executed.")
+
+
+def prepare_sources(lock, env):
+    for name, item in lock.items():
         if name == "schema":
             continue
         path = managed(f"sources/{name}")
@@ -77,7 +82,6 @@ def prepare(env):
             run([*git, "-c", "submodule.recurse=false", "checkout", "--detach", item["revision"]],
                 f"{name}-checkout", env, path)
         verify_source(name, item, env)
-    print("Pinned sources prepared; no upstream build scripts were executed.")
 
 
 def verify_sources(env):

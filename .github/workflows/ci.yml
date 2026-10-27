@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+      PLACEBO_ALLOW_NO_GPU: ${{ matrix.os == 'macos-15' && '1' || '0' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -54,3 +55,15 @@ jobs:
       - name: Test native library and race boundaries (Unix)
         if: runner.os != 'Windows'
         run: python scripts/check.py --link --race
+      - name: Set up Linux Vulkan runtime for synthetic tests
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers libvulkan1
+      - name: Test installed libplacebo SDK (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python scripts/check-placebo.py --allow-missing
+      - name: Test installed libplacebo SDK (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: python scripts/check-placebo.py --allow-missing

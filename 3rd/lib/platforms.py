@@ -17,14 +17,16 @@ def host_target():
     return f"{platform.system().lower()}/{arch}"
 
 
-def toolchain(target, env):
+def toolchain(target, env, *, for_build=True):
     if target not in TARGETS or target != host_target():
         raise ValueError(f"Only native builds are supported: host={host_target()}, target={target}")
-    names = {"cmake": "cmake", "ninja": "ninja", "go": "go", "cc": "gcc", "cxx": "g++",
+    names = {"go": "go", "cc": "gcc", "cxx": "g++",
              "inspect": "objdump"}
+    if for_build:
+        names.update(cmake="cmake", ninja="ninja")
     if target.startswith("darwin/"):
         names.update(cc="clang", cxx="clang++", inspect="otool")
-    else:
+    elif for_build:
         names["nasm"] = "nasm"
     tools = {}
     for key, name in names.items():

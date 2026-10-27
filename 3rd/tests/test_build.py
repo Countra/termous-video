@@ -25,6 +25,9 @@ class BuildTests(unittest.TestCase):
         changes = (
             patch.object(build_sdk, "managed", side_effect=lambda p: self.root / p),
             patch.object(build_sdk, "verify_sources"),
+            patch.object(build_sdk, "verify_review"),
+            patch.object(build_sdk, "build_component"),
+            patch.object(build_sdk, "verify_codec_link"),
             patch.object(build_sdk, "symbol_tools", return_value={"nm": "nm", "objcopy": "objcopy"}),
             patch.object(build_sdk, "toolchain", return_value=tools),
             patch.object(build_sdk, "source_record", return_value={"source_commit": None, "source_dirty": True}),

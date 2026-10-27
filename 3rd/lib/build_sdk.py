@@ -13,9 +13,12 @@ from .sdk_link import verify_link
 from .sdk_manifest import inventory, recipe_hash, source_record, verify_manifest
 from .sources import source_lock, verify_sources
 from .symbols import isolate, symbol_tools
+from .placebo.build import build_component
+from .placebo.review import verify_review
+from .placebo.checks import verify_codec_link
 
 
-def build_sdk(target, jobs, env):
+def build_sdk(target, jobs, env, accepted_review=""):
     recipe = recipe_hash()
     lock = source_lock()
     verify_sources(env)
@@ -26,6 +29,7 @@ def build_sdk(target, jobs, env):
     expected = env.get("SOURCE_COMMIT")
     if expected and (record["source_commit"] != expected or record["source_dirty"]):
         raise ValueError("Publication builds require the selected commit and a clean working tree")
+    verify_review(target, env, accepted_review)
     output = managed(f"out/{target}")
     command = [tools["cmake"], "-S", str(TOOLS_ROOT), "-B", str(output), "-G", "Ninja",
                "-DCMAKE_BUILD_TYPE=Release", f"-DTERMOUS_TARGET={target}",
@@ -57,13 +61,19 @@ def build_sdk(target, jobs, env):
             "Include termous_video_symbols.h before third-party headers. Headers are in include/.\n\n"
             f"OpenH264 {lock['openh264']['version']} includes encoding and decoding; libyuv excludes JPEG. "
             "Both libraries retain architecture-specific SIMD paths.\n\n"
+            "The placebo/ component contains libplacebo and its static backend dependencies with original symbols. "
+            "See placebo/link.json for link order and placebo/manifest.json for rendering results.\n\n"
             "See the repository 3rd/README.md for compiler and linker requirements. "
             "This SDK does not provide a production Go API.\n", encoding="utf-8")
         verification = verify_link(staged, target, tools, env)
+        build_component(target, jobs, env, tools, staged / "placebo", accepted_review)
+        verify_codec_link(staged, staged / "placebo", target, tools, env)
+        verification["placebo_coexistence"] = True
         verify_sources(env)
         if source_record() != record or recipe_hash() != recipe:
             raise ValueError("Source checkout or build recipe changed during the build")
         data = {"schema": 2, "isolation": isolation, "scope": "video_dependencies", "platform": target,
+                "components": {"placebo": "placebo/manifest.json"},
                 "library_type": "static", "build_type": "Release", "sources": lock,
                 "recipe_sha256": recipe, "verification": verification, **record,
                 "toolchain": {key: capture([tools[key], "--version"], BUILD_ROOT, env).splitlines()[0]

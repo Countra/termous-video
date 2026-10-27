@@ -142,13 +142,15 @@ def publish(branch, commit):
     body = ROOT / "build/publish/sdk-pr-body.md"
     body.parent.mkdir(parents=True, exist_ok=True)
     body.write_text(
-        "Update the OpenH264 and libyuv static SDKs for future Go video adapters.\n\n"
+        "Update the OpenH264, libyuv and libplacebo static SDKs.\n\n"
         f"All three SDKs come from source commit `{commit}` and include complete file digests and dependency licenses.\n\n"
         "- Windows amd64: MinGW-w64 GCC.\n"
         "- Linux amd64: GCC.\n"
         "- macOS arm64: Apple Clang, macOS 12 or later.\n"
         "- Validation: native compilation, regular and whole-archive C linking, cgo linking and system dependency checks.\n\n"
-        "Validation uses synthetic pixels only. No desktop capture or production Go video API is included.\n",
+        "Validation uses synthetic pixels only. libplacebo includes C/cgo linking and HDR-to-SDR rendering checks; "
+        "macOS runners without a GPU report runtime validation as unavailable in the manifest. "
+        "No desktop is captured and no production color-processing API is added.\n",
         encoding="utf-8")
     url = gh("pr", "create", "--repo", repository, "--base", branch, "--head", head,
              "--title", "chore(sdk): update video dependency SDKs for three platforms", "--body-file", str(body))

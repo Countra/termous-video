@@ -12,7 +12,9 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放和屏幕�
 
 每套新版 SDK 包含独立的 `libtermous_video_openh264.a`、`libtermous_video_yuv.a`、头文件、许可证、符号映射和校验清单。第三方符号使用 `termous_video_` 私有前缀，与 RDP／采集库各自的原生依赖隔离。RDP 继续自行构建协议需要的 OpenH264／libyuv，不与本库统一依赖版本。
 
-SDK 仍分成两个静态归档，不分发 DLL、可执行程序或视频服务。本库没有生产解码接口；解码仅用于测试编码结果。
+OpenH264／libyuv 仍分成两个私有静态归档。新增的 `sdk/<系统>/<架构>/placebo/` 独立保存 libplacebo 及其静态依赖，保留原始符号，不参与旧归档的符号改写。不分发第三方 DLL、so、dylib、可执行程序或视频服务。本库没有生产解码接口；解码仅用于测试编码结果。
+
+libplacebo 本轮只提供构建和测试准备，尚未接入公共 Go API、桌面采集或 HDR 修正链路。固定使用 VideoLAN 官方仓库的 7.387.0；Windows 使用 D3D11，Linux 使用系统 Vulkan，macOS 使用静态 MoltenVK 调用系统 Metal。构建方法、依赖和平台验证边界见 [libplacebo 构建说明](3rd/placebo/README.md)。
 
 ## 目录
 
@@ -40,7 +42,7 @@ python scripts/check-coexist.py --rdp-sdk ../termous-rdp/sdk/windows/amd64
 
 SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
 
-手动启动后，三平台从同一源码提交构建，全部完成普通 C 链接、全归档链接、真实 cgo 链接及合成画面转换/缩放/编码/解码检查后，统一创建 SDK PR。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
+手动启动后，三平台从同一源码提交构建，完成普通 C 链接、全归档链接、真实 cgo 链接及合成画面转换/缩放/编码/解码检查后，统一创建 SDK PR。libplacebo 额外验证 FP16 HDR→SDR 离屏渲染；macOS runner 若无 GPU，清单明确记录渲染未验证，仍要求 C／cgo 链接和 API 运行通过。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
 
 GitHub 仓库需允许 Actions 创建 Pull Request（Settings → Actions → General），发布 job 使用仓库自带 `GITHUB_TOKEN`。其他 job 只有读取权限。
 

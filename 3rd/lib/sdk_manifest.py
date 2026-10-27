@@ -46,7 +46,7 @@ def recipe_hash():
     digest = hashlib.sha256()
     # WindowsPath 默认按大小写不敏感排序，必须用统一的 POSIX 相对名生成跨平台摘要。
     for path in sorted(TOOLS_ROOT.rglob("*"), key=lambda item: item.relative_to(PROJECT_ROOT).as_posix()):
-        if path.is_file() and (path.suffix in (".py", ".cmake", ".json", ".in", ".c", ".cc", ".h", ".go", ".md")
+        if path.is_file() and (path.suffix in (".py", ".cmake", ".json", ".in", ".c", ".cc", ".m", ".mm", ".h", ".go", ".md")
                                or path.name == "CMakeLists.txt"):
             digest.update(path.relative_to(PROJECT_ROOT).as_posix().encode() + b"\0")
             digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
@@ -119,9 +119,19 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     required.update("lib/" + name for name in libraries)
     if isolated:
         required.update(("include/" + HEADER, "symbols/rename.map"))
+    components = data.get("components", {})
+    if components not in ({}, {"placebo": "placebo/manifest.json"}):
+        raise ValueError("Unexpected SDK components")
+    if current_recipe and "placebo" not in components:
+        raise ValueError("SDK is missing the libplacebo component; run the manual SDK workflow")
+    if "placebo" in components:
+        from .placebo.manifest import verify_component
+        verify_component(directory / "placebo", target, current_recipe=current_recipe)
     if not required <= payload.keys():
         raise ValueError("SDK is missing required libraries, headers or licenses")
     for name in payload:
+        if "placebo" in components and name.startswith("placebo/"):
+            continue
         if not (name.startswith(("include/", "lib/", "licenses/")) or name in ("README.md", "build-lock.json", "symbols/rename.map")):
             raise ValueError(f"Unexpected SDK file: {name}")
         if name.startswith("lib/") and name not in {"lib/" + library for library in libraries}:
@@ -138,4 +148,6 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
         raise ValueError("SDK is missing required link and runtime verification")
     if checks.get("desktop_captured") is not False:
         raise ValueError("SDK verification must not capture the desktop")
+    if "placebo" in components and checks.get("placebo_coexistence") is not True:
+        raise ValueError("SDK is missing libplacebo and codec coexistence verification")
     return data

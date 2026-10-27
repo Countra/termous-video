@@ -9,7 +9,7 @@ from .process import capture, run
 from .symbols import ARCHIVES, HEADER
 
 
-def dynamic_dependencies(binary, target, tools, env):
+def dynamic_dependencies(binary, target, tools, env, *, allowed_extra=()):
     if target.startswith("darwin/"):
         output = capture([tools["inspect"], "-L", binary], BUILD_ROOT, env)
         libraries = re.findall(r"^\s+(\S+) \(compatibility version", output, re.MULTILINE)
@@ -24,6 +24,7 @@ def dynamic_dependencies(binary, target, tools, env):
             libraries = re.findall(r"DLL Name:\s*(\S+)", output)
             allowed = {"kernel32.dll", "msvcrt.dll", "ucrtbase.dll", "advapi32.dll", "user32.dll",
                        "shell32.dll", "ws2_32.dll", "ntdll.dll", "bcrypt.dll"}
+            allowed.update(allowed_extra)
             valid = libraries and all(name.lower() in allowed or name.lower().startswith("api-ms-win-")
                                       for name in libraries)
         else:

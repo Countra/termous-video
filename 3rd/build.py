@@ -11,23 +11,27 @@ from lib.build_sdk import build_sdk
 from lib.platforms import TARGETS, host_target
 from lib.process import environment
 from lib.sources import prepare, verify_sources
+from lib.placebo import sources as placebo_sources
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Prepare or build pinned OpenH264/libyuv static SDKs.")
+    parser = argparse.ArgumentParser(description="Prepare or build pinned video and libplacebo static SDKs.")
     parser.add_argument("action", choices=("prepare", "build", "verify-sources"))
     parser.add_argument("--target", choices=TARGETS, default=host_target())
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 2, 8))
+    parser.add_argument("--accepted-review-sha256", default="")
     args = parser.parse_args()
     if not 1 <= args.jobs <= 128:
         raise ValueError("Jobs must be between 1 and 128")
     env = environment()
     if args.action == "prepare":
         prepare(env)
+        placebo_sources.prepare(args.target, env)
     elif args.action == "verify-sources":
         verify_sources(env)
+        placebo_sources.verify_sources(args.target, env)
     else:
-        build_sdk(args.target, args.jobs, env)
+        build_sdk(args.target, args.jobs, env, args.accepted_review_sha256)
 
 
 if __name__ == "__main__":

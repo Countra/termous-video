@@ -15,14 +15,19 @@ sys.path.insert(0, str(TOOLS))
 from lib import sdk_install, sdk_manifest
 from lib.platforms import TARGETS
 from lib.sources import source_lock
+from placebo_fixture import fixture as placebo_fixture
 
 spec = importlib.util.spec_from_file_location("sdk_entry", TOOLS / "sdk.py")
 sdk_entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sdk_entry)
+spec = importlib.util.spec_from_file_location("placebo_entry", TOOLS.parent / "scripts/check-placebo.py")
+placebo_entry = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(placebo_entry)
 COMMIT = "1" * 40
 
 
 def fixture(directory, target):
+    placebo_fixture(directory / "placebo", target)
     files = {
         "lib/libtermous_video_openh264.a": b"!<arch>\n", "lib/libtermous_video_yuv.a": b"!<arch>\n",
         "include/wels/codec_api.h": b"api", "include/wels/codec_app_def.h": b"app",
@@ -38,10 +43,11 @@ def fixture(directory, target):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     data = {"schema": 2, "platform": target, "scope": "video_dependencies", "build_type": "Release",
+            "components": {"placebo": "placebo/manifest.json"},
             "library_type": "static", "sources": source_lock(), "source_commit": COMMIT,
             "source_dirty": False, "isolation": {"version": 1, "prefix": "termous_video_", "symbols": 1}, "recipe_sha256": sdk_manifest.recipe_hash(),
             "verification": {"c_link": True, "whole_archive_link": True, "cgo_link": True,
-                             "synthetic_smoke": True, "desktop_captured": False},
+                             "synthetic_smoke": True, "desktop_captured": False, "placebo_coexistence": True},
             "files": sdk_manifest.inventory(directory)}
     (directory / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
 
@@ -164,6 +170,38 @@ class SDKTests(unittest.TestCase):
         (installed / "lib/libtermous_video_yuv.a").write_bytes(b"broken")
         with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaisesRegex(ValueError, "digest"):
             sdk_entry.audit_installed()
+
+    def test_allow_missing_only_skips_legacy_component(self):
+        target = TARGETS[0]
+        installed = self.root / "sdk" / target
+        fixture(installed, target)
+        shutil.rmtree(installed / "placebo")
+        with patch.object(placebo_entry, "ROOT", self.root), \
+                patch.object(placebo_entry, "host_target", return_value=target), \
+                patch.object(sys, "argv", ["check-placebo.py", "--allow-missing"]), \
+                patch.object(placebo_entry, "verify_link") as link:
+            with self.assertRaises(ValueError):
+                placebo_entry.main()
+            # 只有原本不含组件的旧 SDK 才允许过渡期跳过；损坏的新 SDK 必须报错。
+            path = installed / "manifest.json"
+            data = json.loads(path.read_text())
+            del data["components"]
+            data["files"] = sdk_manifest.inventory(installed)
+            path.write_text(json.dumps(data))
+            placebo_entry.main()
+            link.assert_not_called()
+
+    def test_recipe_digest_tracks_objective_c_sources(self):
+        recipe = self.root / "recipe"
+        recipe.mkdir()
+        with patch.object(sdk_manifest, "TOOLS_ROOT", recipe), \
+                patch.object(sdk_manifest, "PROJECT_ROOT", self.root):
+            previous = sdk_manifest.recipe_hash()
+            for name in ("probe.m", "probe.mm"):
+                (recipe / name).write_text("int probe(void) { return 1; }\n")
+                current = sdk_manifest.recipe_hash()
+                self.assertNotEqual(previous, current)
+                previous = current
 
     def test_malformed_metadata_has_explicit_error(self):
         staged = self.build / "sdk"
