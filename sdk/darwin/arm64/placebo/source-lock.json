@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "libplacebo": {
+    "version": "7.387.0",
+    "url": "https://code.videolan.org/videolan/libplacebo.git",
+    "revision": "275f7dea27924cdd34ab2e6c20e448b6bc4fab65"
+  },
+  "glslang": {
+    "version": "16.6.0",
+    "url": "https://github.com/KhronosGroup/glslang.git",
+    "revision": "e1b562a8bed273a02f30b59b66a5d499793cede5"
+  },
+  "spirv-cross": {
+    "version": "moltenvk-1.4.2",
+    "url": "https://github.com/KhronosGroup/SPIRV-Cross.git",
+    "revision": "6c09849fe88c48eaed08413aa022aaa136a3a057"
+  },
+  "vulkan-headers": {
+    "version": "moltenvk-1.4.2",
+    "url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+    "revision": "e3b1eec08173d6b825cd3ac88c885a63b621504a"
+  },
+  "moltenvk": {
+    "version": "1.4.2",
+    "url": "https://github.com/KhronosGroup/MoltenVK.git",
+    "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf"
+  },
+  "cereal": {
+    "version": "moltenvk-1.4.2",
+    "url": "https://github.com/USCiLab/cereal.git",
+    "revision": "a56bad8bbb770ee266e930c95d37fff2a5be7fea"
+  },
+  "fast-float": {
+    "version": "libplacebo-7.387.0",
+    "url": "https://github.com/fastfloat/fast_float.git",
+    "revision": "97b54ca9e75f5303507699d27c6b4f4efe4641a1"
+  },
+  "jinja": {
+    "version": "libplacebo-7.387.0",
+    "url": "https://github.com/pallets/jinja.git",
+    "revision": "15206881c006c79667fe5154fe80c01c65410679"
+  },
+  "markupsafe": {
+    "version": "libplacebo-7.387.0",
+    "url": "https://github.com/pallets/markupsafe.git",
+    "revision": "297fc8e356e6836a62087949245d09a28e9f1b13"
+  }
+}

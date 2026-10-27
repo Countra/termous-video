@@ -1,0 +1,23 @@
+{
+  "archives": [
+    "lib/libplacebo.a",
+    "lib/libSPIRV.a",
+    "lib/libglslang.a",
+    "lib/libglslang-default-resource-limits.a"
+  ],
+  "compile_flags": [
+    "-DPL_STATIC",
+    "-std=c11"
+  ],
+  "system_flags": [
+    "-Wl,-Bstatic",
+    "-lstdc++",
+    "-Wl,-Bdynamic",
+    "-pthread",
+    "-lm",
+    "-ldl"
+  ],
+  "backend": "vulkan",
+  "vulkan_loader": "system_dlopen",
+  "symbol_renaming": false
+}

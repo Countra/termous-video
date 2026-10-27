@@ -1,0 +1,29 @@
+{
+  "archives": [
+    "lib/libplacebo.a",
+    "lib/libspirv-cross-c.a",
+    "lib/libspirv-cross-hlsl.a",
+    "lib/libspirv-cross-glsl.a",
+    "lib/libspirv-cross-core.a",
+    "lib/libSPIRV.a",
+    "lib/libglslang.a",
+    "lib/libglslang-default-resource-limits.a",
+    "lib/libplacebo_ucrt_math.a"
+  ],
+  "compile_flags": [
+    "-DPL_STATIC",
+    "-std=c11"
+  ],
+  "system_flags": [
+    "-static",
+    "-lstdc++",
+    "-lwinpthread",
+    "-lversion",
+    "-lshlwapi",
+    "-lole32",
+    "-luuid"
+  ],
+  "backend": "d3d11",
+  "vulkan_loader": null,
+  "symbol_renaming": false
+}

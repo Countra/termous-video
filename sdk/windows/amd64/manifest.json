@@ -1,9 +1,12 @@
 {
   "build_type": "Release",
+  "components": {
+    "placebo": "placebo/manifest.json"
+  },
   "files": {
     "README.md": {
-      "bytes": 469,
-      "sha256": "5cec6c82688c164aa00f983967b7308076f662e88cdb52690b709bb4ad5f01b6"
+      "bytes": 660,
+      "sha256": "ed1f8d3c43d8bda83f6c91f1069ebc95eb6b6f961a561fa0bb681c361abd7e73"
     },
     "build-lock.json": {
       "bytes": 348,
@@ -131,7 +134,7 @@
     },
     "lib/libtermous_video_openh264.a": {
       "bytes": 2314378,
-      "sha256": "17c1621d068c12071329579f9676b92cba7d6bd3e627646de86c0e0809e05432"
+      "sha256": "37d5a753e0350dc04be1240d4018e4b1e0b5562b9cc4a56dc61a99c07985cbb8"
     },
     "lib/libtermous_video_yuv.a": {
       "bytes": 1490292,
@@ -148,6 +151,394 @@
     "licenses/libyuv-PATENTS": {
       "bytes": 1387,
       "sha256": "4da84211f947c6f9f7dd8fbce513e1522e01833407ae732b8c9a2bbb75fed495"
+    },
+    "placebo/include/libplacebo/cache.h": {
+      "bytes": 9064,
+      "sha256": "8a9c73c67a560ef069999f4f087efaa8f7044c9723e0c76d6b5d0b44826a6281"
+    },
+    "placebo/include/libplacebo/colorspace.h": {
+      "bytes": 37934,
+      "sha256": "7bc764a76ea9ec9a421b9aea62aafda30c90def35498389b9b8775dbd7fc0854"
+    },
+    "placebo/include/libplacebo/common.h": {
+      "bytes": 9406,
+      "sha256": "c6cb7b7960b1bff95b34128e5b1f6312d75068e09ebc4808041fd2ebf9312595"
+    },
+    "placebo/include/libplacebo/compositor.h": {
+      "bytes": 16825,
+      "sha256": "bf2ba78c6e51b7ca91c0bbb139cc5fc27679310c7949f81a4e9a1cb2deedd66e"
+    },
+    "placebo/include/libplacebo/config.h": {
+      "bytes": 3016,
+      "sha256": "22eb82bb5e51addefb39a9e37298c990887d958e8b5681e5ba89a1493fb12075"
+    },
+    "placebo/include/libplacebo/d3d11.h": {
+      "bytes": 11941,
+      "sha256": "563767b679766cb2c644d45ba0ab08cee419e1b61e9e8a4a8fa1b16ad7ab6ac6"
+    },
+    "placebo/include/libplacebo/dispatch.h": {
+      "bytes": 9863,
+      "sha256": "9c4fa74d440d598458688b9b8d937aa5f8db54efa54381c73bfbf01b4d947dd5"
+    },
+    "placebo/include/libplacebo/dither.h": {
+      "bytes": 3667,
+      "sha256": "4905faaca77818b1e4a658b55b48b1839de1a49635943411d2d1b5933156f1f5"
+    },
+    "placebo/include/libplacebo/dummy.h": {
+      "bytes": 6771,
+      "sha256": "ee5a3bebc9e9a24353f3097e3822157d492a04c4026b62e30cf8c6522bc76645"
+    },
+    "placebo/include/libplacebo/filters.h": {
+      "bytes": 19508,
+      "sha256": "84b857ee5c61e181cea655c4ba17b4b510ac441422dbf4d6eb25611f4e59c5d2"
+    },
+    "placebo/include/libplacebo/gamut_mapping.h": {
+      "bytes": 7630,
+      "sha256": "a75332f7d17b2cb55e7b16a9bcb6a88b639ec957809a7913876cab1acfe0bf69"
+    },
+    "placebo/include/libplacebo/gpu.h": {
+      "bytes": 63526,
+      "sha256": "76c4c95b8d6f7dd0512262d6e57d274725df28d6516fd2b0b247e9bcd442d0cf"
+    },
+    "placebo/include/libplacebo/log.h": {
+      "bytes": 4678,
+      "sha256": "1a3ca9b8202f27d565b56c12407f4747f1303e9e1dcf48896c89c7c7c978f5ee"
+    },
+    "placebo/include/libplacebo/opengl.h": {
+      "bytes": 10111,
+      "sha256": "ac93bc9a296b0545c83eb7bb02f71c824e3d030cb0432e83a72476b40475dbe9"
+    },
+    "placebo/include/libplacebo/options.h": {
+      "bytes": 9094,
+      "sha256": "dbce48891415791efd2aae31900725b43eb562964b33fe90340d5dd90d5a662c"
+    },
+    "placebo/include/libplacebo/renderer.h": {
+      "bytes": 44043,
+      "sha256": "b7932800a07cab1ce10544f50c2a5466bfd1e665983a1a6fdf38bcb14bde3fb7"
+    },
+    "placebo/include/libplacebo/shaders.h": {
+      "bytes": 12009,
+      "sha256": "7bcfa51503e758b2b32e6f409396730ac12e369309ae2234c4fd4444fde3d63e"
+    },
+    "placebo/include/libplacebo/shaders/colorspace.h": {
+      "bytes": 21860,
+      "sha256": "a0ab52c0c24045f55e65124c843066cf05e729a0240765c6e2a404dba18eb925"
+    },
+    "placebo/include/libplacebo/shaders/custom.h": {
+      "bytes": 13699,
+      "sha256": "eb7c317f6c93ce76a67f5e622d5c784e702545752a88535a4eb577fdcc74e50e"
+    },
+    "placebo/include/libplacebo/shaders/deinterlacing.h": {
+      "bytes": 5377,
+      "sha256": "c3a21191792421f6cc707c24735c4a120a2135fd36e6e58c1b895def4244efb0"
+    },
+    "placebo/include/libplacebo/shaders/dithering.h": {
+      "bytes": 6196,
+      "sha256": "d9a88640c54f1be410caa8a052bd05ad24ac9d4c71b6b9265754bf781bbc4f54"
+    },
+    "placebo/include/libplacebo/shaders/film_grain.h": {
+      "bytes": 5292,
+      "sha256": "a6df80b759aaf45bd445fce1db3bcb26fc4fdc5e52c672d294bab709eaec24ab"
+    },
+    "placebo/include/libplacebo/shaders/icc.h": {
+      "bytes": 6059,
+      "sha256": "0523a23ccf70b29aba5828b58cf4649a9c373c0a426f937dd6100845848b6122"
+    },
+    "placebo/include/libplacebo/shaders/lut.h": {
+      "bytes": 3188,
+      "sha256": "aecb43257ed72adaa095178dd0f64800827519b320439f2ddd4be0eac8e61a9b"
+    },
+    "placebo/include/libplacebo/shaders/sampling.h": {
+      "bytes": 11726,
+      "sha256": "dff03bfd6fd6fe38b8e05641252986ab301606be3fc5b914a61147ffc1ff33ae"
+    },
+    "placebo/include/libplacebo/swapchain.h": {
+      "bytes": 8068,
+      "sha256": "e89d20e46f6abadef8b57593103b27276711a31750d9ba27486cbe7ecdc98474"
+    },
+    "placebo/include/libplacebo/tone_mapping.h": {
+      "bytes": 11906,
+      "sha256": "dcf32f6eca4aa4e323c1396a5f1359922c5117e3f3eab845b4b5d674598f471e"
+    },
+    "placebo/include/libplacebo/utils/dav1d.h": {
+      "bytes": 6206,
+      "sha256": "f2215831184490b1a091150b9d45cf506b233017814e3864143c0f9b3d167520"
+    },
+    "placebo/include/libplacebo/utils/dav1d_internal.h": {
+      "bytes": 22990,
+      "sha256": "2977f96456d9729184557189a9a3489f6e08227f2211f50079be50b22651917e"
+    },
+    "placebo/include/libplacebo/utils/dolbyvision.h": {
+      "bytes": 1210,
+      "sha256": "46487cb4b604d26227710d2dc93054da9845c2d20534efbc64bc72a1305d948a"
+    },
+    "placebo/include/libplacebo/utils/frame_queue.h": {
+      "bytes": 12437,
+      "sha256": "14671982fa5428fc3c7c2dafefdb6a1d9a399d7287a8e52d5cefc3beb407f1d2"
+    },
+    "placebo/include/libplacebo/utils/libav.h": {
+      "bytes": 15048,
+      "sha256": "34d220719e678ac891a0e5bf53ed2a6c794931f78d556c834d19b9d5ad8e16ea"
+    },
+    "placebo/include/libplacebo/utils/libav_internal.h": {
+      "bytes": 65900,
+      "sha256": "64111c63be9e0472407ff414d75c6910d74de5b6984c2054f99ffb424ca27a11"
+    },
+    "placebo/include/libplacebo/utils/upload.h": {
+      "bytes": 7790,
+      "sha256": "7bdb083ce74ea4039fc7b957dd0128d7aff398fef3e328b6a554ae97edce2dc1"
+    },
+    "placebo/include/libplacebo/vulkan.h": {
+      "bytes": 29471,
+      "sha256": "74ade6f69ed6f3f206462ce143ed7fafdc255ec98e8ed5fe4a952f14bb15337e"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_av1std.h": {
+      "bytes": 16694,
+      "sha256": "c75c1d324b97d247aef0008024bc7f3adb98c741ab7f66c882ec38fdacc7ee33"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_av1std_decode.h": {
+      "bytes": 4257,
+      "sha256": "7e3a1ce177c12546d410f3179ce1b81f2da7a8eba4f525b29cd563ab4099c0e5"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_av1std_encode.h": {
+      "bytes": 5986,
+      "sha256": "8d166b4543260a38347860443b1a59c7a5e86cdb0d0facaf4c704f667de030e3"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h264std.h": {
+      "bytes": 13961,
+      "sha256": "fded484cef9f90fbbd089e0647268f36e5f4292179fbc5428a2c9e8d7709bbe9"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h264std_decode.h": {
+      "bytes": 2730,
+      "sha256": "37b970c3d80536ad1ac074cfe19b58ee03c3075378e02179e1dc5e4351266821"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h264std_encode.h": {
+      "bytes": 6885,
+      "sha256": "227e092b53c4e7ca1a948ed021704511c1ed16040cd6188ff6703e5ae66db64d"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h265std.h": {
+      "bytes": 23446,
+      "sha256": "0b81f8986ada015ef2e127449eff9d9634899bb59a0a9277a4054e9ec4416c12"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h265std_decode.h": {
+      "bytes": 2436,
+      "sha256": "879a0dd370a1b1ad184638906c52bdfe7d80d639fbc5a5baa8b02d7c5b60b147"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_h265std_encode.h": {
+      "bytes": 7469,
+      "sha256": "abb3e72af22e4e0a3dbe5dff7be1b275949388809fb3987830341e8f495ea1c7"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_vp9std.h": {
+      "bytes": 5391,
+      "sha256": "0a47125865376a3fe7014b69ff6db9d04e30ebf8c4d15664f1d894649ad5c09d"
+    },
+    "placebo/include/vk_video/vulkan_video_codec_vp9std_decode.h": {
+      "bytes": 2378,
+      "sha256": "1ceb1a8d0e3370e508cf688a6e57dc314cd82186b60f3cef420ea4b1b483865d"
+    },
+    "placebo/include/vk_video/vulkan_video_codecs_common.h": {
+      "bytes": 667,
+      "sha256": "d2e7caa396c521d03d491a269572b1d31b925b5127d22fda14199951ebae89f8"
+    },
+    "placebo/include/vulkan/vk_icd.h": {
+      "bytes": 8228,
+      "sha256": "ba22828f76de7231e7dfbb5d8564e7a58dd9f5dbeac8c1f0ff6c056c92db744a"
+    },
+    "placebo/include/vulkan/vk_layer.h": {
+      "bytes": 7182,
+      "sha256": "a9fb1343e7e1fa3456189bf146f2186b8df46c1b1a01f88f8b9ae4cd25b1623c"
+    },
+    "placebo/include/vulkan/vk_platform.h": {
+      "bytes": 2832,
+      "sha256": "a2cd9085c66776845d2524c3b0e73ccf4827ba046aa6f676c4b8ddbed47d6552"
+    },
+    "placebo/include/vulkan/vulkan.cppm": {
+      "bytes": 48865,
+      "sha256": "0636d9b30ba9af217d810603ede7107c6299962383de48b6bc5f116d67aa5487"
+    },
+    "placebo/include/vulkan/vulkan.h": {
+      "bytes": 1620,
+      "sha256": "096f50152d0b298d8df84a561a37d8190c8a60af34dff0e2cc8328b24491a640"
+    },
+    "placebo/include/vulkan/vulkan.hpp": {
+      "bytes": 1223000,
+      "sha256": "1b381bb1c00c36006ea5d8cb4cce6435702c6e30be784b3420d2edaf1911b1e1"
+    },
+    "placebo/include/vulkan/vulkan_android.h": {
+      "bytes": 6337,
+      "sha256": "9dcce545a790b5b1ce00e103ade95c8efa4c8a0bf2ff39865d76a7d2f987aef2"
+    },
+    "placebo/include/vulkan/vulkan_beta.h": {
+      "bytes": 17419,
+      "sha256": "bb43577a445c357c3f0c03572b3dd3ebd9fca39914c0092f7d77e942af05d3fc"
+    },
+    "placebo/include/vulkan/vulkan_core.h": {
+      "bytes": 1355514,
+      "sha256": "a7ac0d7e35e77f642c175af5d36729cfdae2d626d2aaa9145c030a42bd44edc6"
+    },
+    "placebo/include/vulkan/vulkan_directfb.h": {
+      "bytes": 1959,
+      "sha256": "efecf5a15380f61c16ef257ed55a998f2cc651789bec22056ccc81d2518daefc"
+    },
+    "placebo/include/vulkan/vulkan_enums.hpp": {
+      "bytes": 733049,
+      "sha256": "8d5de6fa92ca6ebf72a48cc10f25a83df9c1bd4ca481f3c2028be0e3ee2ab6fa"
+    },
+    "placebo/include/vulkan/vulkan_extension_inspection.hpp": {
+      "bytes": 206384,
+      "sha256": "0b21a6d9fee393938e513fc2ebf47a54573ce9bad754cbd7d911944a3442c65d"
+    },
+    "placebo/include/vulkan/vulkan_format_traits.hpp": {
+      "bytes": 428681,
+      "sha256": "b980aefbb629a1bfebdfd475532f9f2214660a6532c39dffb91c2fe6c38ec0d2"
+    },
+    "placebo/include/vulkan/vulkan_fuchsia.h": {
+      "bytes": 12907,
+      "sha256": "17aedccaae68825bfa2954faec1bc9e953b106f1161e1b2ab26ab4cdccf21a06"
+    },
+    "placebo/include/vulkan/vulkan_funcs.hpp": {
+      "bytes": 2287170,
+      "sha256": "6beb302c8f8ab26afc4056718f63087f3829f65467a0628ee142844043992136"
+    },
+    "placebo/include/vulkan/vulkan_ggp.h": {
+      "bytes": 1946,
+      "sha256": "b68cbbf19b9397ee63dd6ba94526059bd2ff000c66083243758e3a04e215bd2c"
+    },
+    "placebo/include/vulkan/vulkan_handles.hpp": {
+      "bytes": 1758311,
+      "sha256": "1bfbf0d70d5f6a0a623f5803e3d25fc6ec98095e8ea459c087d2ae28d2ff8cd9"
+    },
+    "placebo/include/vulkan/vulkan_hash.hpp": {
+      "bytes": 1098745,
+      "sha256": "f225e0fb261fd9c3c567dd596e764d598e64fbc14eb29b7ef383e5b4b10e3da5"
+    },
+    "placebo/include/vulkan/vulkan_hpp_macros.hpp": {
+      "bytes": 12019,
+      "sha256": "b9a71f468bde2facb989164186c99e4ec565ca0bc45b3c2675ebb4056a236a4b"
+    },
+    "placebo/include/vulkan/vulkan_ios.h": {
+      "bytes": 1359,
+      "sha256": "ebaeffc3f4ec0484dcf34753678f1642caf73f6db4e17f11f1b82302151b918c"
+    },
+    "placebo/include/vulkan/vulkan_macos.h": {
+      "bytes": 1391,
+      "sha256": "3ae5522081741e9021be86727e11949ad8c695e66f75e1c422e577afd7657f59"
+    },
+    "placebo/include/vulkan/vulkan_metal.h": {
+      "bytes": 8073,
+      "sha256": "d5fe0caf881cc9c72ea2ba31ca86c684e97cdec6741d6e6298ecbd8f58dc8c5e"
+    },
+    "placebo/include/vulkan/vulkan_ohos.h": {
+      "bytes": 4113,
+      "sha256": "3cc40f845b5fd75cda0d8a3b1f2782522a3591657f67c656a211b4639eb23b16"
+    },
+    "placebo/include/vulkan/vulkan_raii.hpp": {
+      "bytes": 1882478,
+      "sha256": "5336b82c63b6229ff9d05229df44817c9b8533b0e63da5aed435f18399222f1b"
+    },
+    "placebo/include/vulkan/vulkan_screen.h": {
+      "bytes": 4200,
+      "sha256": "b9e7e7921b4be199c8ecfe518bd71bd8e533adbbab193714c542157b87b10e86"
+    },
+    "placebo/include/vulkan/vulkan_shared.hpp": {
+      "bytes": 37350,
+      "sha256": "9fe25e7cae294e71ce1683b15c78a3f57d772a889b7f0e4319e5a8a7b5d94e59"
+    },
+    "placebo/include/vulkan/vulkan_static_assertions.hpp": {
+      "bytes": 939019,
+      "sha256": "d66c5b9f332fa2e7da407887a2a90afe599e81c22ff89d9057a44d5d02b23023"
+    },
+    "placebo/include/vulkan/vulkan_structs.hpp": {
+      "bytes": 8886873,
+      "sha256": "03d0b7a96fb43ac05b98d829054de685eb148a2facce2e284a4c13fedb997ef4"
+    },
+    "placebo/include/vulkan/vulkan_to_string.hpp": {
+      "bytes": 674638,
+      "sha256": "c26500482fc87dbbdcf254cdb00eae33f3dd8bab8a1dd6112e83e6516733d9ae"
+    },
+    "placebo/include/vulkan/vulkan_ubm.h": {
+      "bytes": 1878,
+      "sha256": "ac106317c017d1975f26184d3979dba0352f10aa1cfc7ef5373be92fef6bd137"
+    },
+    "placebo/include/vulkan/vulkan_vi.h": {
+      "bytes": 1332,
+      "sha256": "a53e35bb1b3113e6ef4932cb9358a27861a198d7865227ecd93555fecc73dd68"
+    },
+    "placebo/include/vulkan/vulkan_video.cppm": {
+      "bytes": 2278,
+      "sha256": "aa8f15aa490d52337acf06a0de6165da8c1a589ced8caf732aedbfec7e00d268"
+    },
+    "placebo/include/vulkan/vulkan_video.hpp": {
+      "bytes": 271650,
+      "sha256": "0d1166ce914ba96a561c79f0905426419cd833b77d5b1a297f8ebe7d53f637df"
+    },
+    "placebo/include/vulkan/vulkan_wayland.h": {
+      "bytes": 1959,
+      "sha256": "6c4146149d45bcbb5a22c7540feaa396ee9a49f077737c7a343c62de5199fbc7"
+    },
+    "placebo/include/vulkan/vulkan_win32.h": {
+      "bytes": 15764,
+      "sha256": "72f0b6de71287d3b04d12235e4f2fef8f343126f85be4963c516d31d5bb4c099"
+    },
+    "placebo/include/vulkan/vulkan_xcb.h": {
+      "bytes": 1973,
+      "sha256": "3d49f5eb52090e72e1cf7cde545088225ac524a2ff1d1f35737e7d944474c1b7"
+    },
+    "placebo/include/vulkan/vulkan_xlib.h": {
+      "bytes": 1954,
+      "sha256": "3c44e97d3f380eb912e01a79e9667457fdf5e18164f0b09b3c61431f421bc551"
+    },
+    "placebo/include/vulkan/vulkan_xlib_xrandr.h": {
+      "bytes": 1504,
+      "sha256": "188233d112d812cca1777cfa6c1585073f1f2b033fa08b2f11c8d0757fcc232e"
+    },
+    "placebo/lib/libSPIRV.a": {
+      "bytes": 876,
+      "sha256": "ad390dbe685f5cd58658a4f5e78b7850f54bc1f68cce7b38106dc29ae5ef8fca"
+    },
+    "placebo/lib/libglslang-default-resource-limits.a": {
+      "bytes": 35192,
+      "sha256": "488a19fce4479bbe8063331ed074cf5ea28bc2644899b3d78d4a4aa36b662cf1"
+    },
+    "placebo/lib/libglslang.a": {
+      "bytes": 7294360,
+      "sha256": "4d87c6d630ecc64632a52815f974ac796470db0d942f08e00cad9de289b0e43e"
+    },
+    "placebo/lib/libplacebo.a": {
+      "bytes": 1404578,
+      "sha256": "a70bca924af9aacf4f443690ae030b2b04e7b395cd7d6b3c8a1dde1dbea78829"
+    },
+    "placebo/lib/libplacebo_ucrt_math.a": {
+      "bytes": 51984,
+      "sha256": "d199e66673b41f31b81bc3e1583ac35a6b85c785f173a7825e3d847c071d7c1d"
+    },
+    "placebo/lib/libspirv-cross-c.a": {
+      "bytes": 196370,
+      "sha256": "12836385f735a7a84a09abe4cad13f8ee303e1b719b91d33acb146a874905c07"
+    },
+    "placebo/lib/libspirv-cross-core.a": {
+      "bytes": 1014972,
+      "sha256": "f1ade92c5dcbce6ad3bab2764f641ad61ceab4a4c3c4495f901c42b0bbb398b3"
+    },
+    "placebo/lib/libspirv-cross-glsl.a": {
+      "bytes": 1912680,
+      "sha256": "68d1eb09902538c4fbfd73f1a67d0d01a17b4cf2a78835ef1d8f33644329c883"
+    },
+    "placebo/lib/libspirv-cross-hlsl.a": {
+      "bytes": 969280,
+      "sha256": "f37521d03a47582ae0dfee8d5ea6fe1eea5da6b95f336cec268fe99dafa0bcab"
+    },
+    "placebo/link.json": {
+      "bytes": 606,
+      "sha256": "b70f1c475880e92d1fa49d56dd1bb227a1ef5caa1f2381274d11b693fd81fb1e"
+    },
+    "placebo/manifest.json": {
+      "bytes": 17542,
+      "sha256": "61683c9d937abac46466576624854859da42c04590443c49e570786cf6551ddf"
+    },
+    "placebo/source-lock.json": {
+      "bytes": 1557,
+      "sha256": "432eae859eee9727aff7686cc001048dd8c6c0abca93ab36ad632dcee99e284c"
     },
     "symbols/rename.map": {
       "bytes": 390899,
@@ -176,10 +567,10 @@
   },
   "library_type": "static",
   "platform": "windows/amd64",
-  "recipe_sha256": "0cfbcb86223053f8d2a0003b28376e3eaab4398be485b27a2cf0c4f4f957a5c3",
+  "recipe_sha256": "56f195765af9af579f0b5a4cd09f73983eb140b91f16d001a39e9d0ee4d4f0b8",
   "schema": 2,
   "scope": "video_dependencies",
-  "source_commit": "2b50f5dcf076ebe81ef88d97194dd9089cd4e938",
+  "source_commit": "3da7c2d57ae3bed703578aaf175dd6d0335cdb90",
   "source_dirty": false,
   "sources": {
     "libyuv": {
@@ -203,6 +594,7 @@
     "c_link": true,
     "cgo_link": true,
     "desktop_captured": false,
+    "placebo_coexistence": true,
     "synthetic_smoke": true,
     "system_dependencies": [
       "KERNEL32.dll",
