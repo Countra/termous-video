@@ -1,6 +1,6 @@
 # termous-video
 
-Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放和屏幕内容 H.264 编码。Go 模块为 `termous/video`；cgo、平台判断和原生资源均封装在库内部，不依赖 Core、RDP、Pion 或采集库。
+Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放、屏幕内容 H.264 编码及 libplacebo HDR→SDR。Go 模块为 `termous/video`；cgo、平台判断和原生资源均封装在库内部，不依赖 Core、RDP、Pion 或采集库。
 
 仓库：<https://github.com/Countra/termous-video>
 
@@ -14,15 +14,16 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放和屏幕�
 
 OpenH264／libyuv 仍分成两个私有静态归档。新增的 `sdk/<系统>/<架构>/placebo/` 独立保存 libplacebo 及其静态依赖，保留原始符号，不参与旧归档的符号改写。不分发第三方 DLL、so、dylib、可执行程序或视频服务。本库没有生产解码接口；解码仅用于测试编码结果。
 
-libplacebo 本轮只提供构建和测试准备，尚未接入公共 Go API、桌面采集或 HDR 修正链路。固定使用 VideoLAN 官方仓库的 7.387.0；Windows 使用 D3D11，Linux 使用系统 Vulkan，macOS 使用静态 MoltenVK 调用系统 Metal。构建方法、依赖和平台验证边界见 [libplacebo 构建说明](3rd/placebo/README.md)。
+独立 `color` API 使用已提交的 libplacebo 7.387.0 SDK，按需处理 RGBA16F scRGB。Windows 优先 D3D11 硬件，初始化失败后尝试系统 WARP；Linux 使用系统 Vulkan，macOS 使用静态 MoltenVK 调用系统 Metal。没有自研 CPU 转换或捆绑渲染器；后端不可用时返回明确错误。构建方法和依赖见 [libplacebo 构建说明](3rd/placebo/README.md)。
 
 ## 目录
 
 - `3rd/`：全平台 Python 入口、本仓库 CMake 配方、验证程序和测试。
 - `build/`：下载的 Git 仓库、编译输出、日志、临时 SDK 和合成画面验证程序，忽略版本控制。
 - `sdk/<系统>/<架构>/`：验证通过的安装产物，由 CI 通过 PR 更新。
-- `frame/`、`convert/`、`h264/`：公共帧合同、转换和编码 API。
+- `frame/`、`convert/`、`h264/`、`color/`：公共帧合同、转换、编码和色彩处理 API。
 - `internal/native/`：薄 C ABI、原生转换／编码及独立的平台链接文件。
+- `internal/colornative/`：独立的 libplacebo 设备、纹理渲染与平台链接；只导入 `h264` 不链接此模块或创建设备。
 - `scripts/`：消费 SDK 的 Go 测试与二进制依赖检查。
 
 ## 使用
@@ -61,12 +62,28 @@ defer encoder.Close()
 result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, TimestampMS: 0})
 ```
 
-调用者计算目标尺寸及单调递增的毫秒时间戳。BGRA 输入支持行填充，I420 输入允许三个平面使用独立步长；转换采用 BT.601 有限范围 I420，缩放采用双线性策略。编码输出宽高必须为偶数，最小 16×16，最高 1920×1080、30fps、8Mbps，Level 3.1 限制为 720p。独立帧和转换接口仍支持更小或奇数尺寸。编码器不会自行创建观看预设或网络预算。
+调用者计算目标尺寸及单调递增的毫秒时间戳。BGRA 输入支持行填充，I420 输入允许三个平面使用独立步长；默认保留 BT.601 有限范围转换，`Config.Matrix = h264.Matrix709` 显式选择 BT.709。缩放仍为双线性。VUI 标记 BT.709 原色、实际矩阵、sRGB 传递函数和有限范围；`EncodeI420` 的调用方应提供与配置一致的 I420。
+
+编码输出宽高必须为偶数，最小 16×16，最大长边 2560、短边 1440，最高 60fps／24Mbps。`Config.Validate` 和 `UpdateRate` 联合校验尺寸、宏块率、码率及 Level，不能任意拼接独立最大值；`MinimumLevel` 返回满足整个组合的最低等级。独立帧和转换接口仍支持更小或奇数尺寸。编码器不创建观看预设或网络预算。
+
+| 输出组合 | 最低等级（码率仍需单独满足该等级） |
+|---|---|
+| 720p30／720p60 | 3.1／3.2 |
+| 1080p30／1080p60 | 4.0／4.2 |
+| 1440p30／1440p60 | 5.0／5.1 |
 
 输入为同步只读借用，调用返回前不得修改或释放；返回的 Annex-B 数据由 Go 持有，后续调用不覆盖。`Skipped` 表示编码器跳帧。转换函数写入调用方提供的缓冲，拒绝输入／输出重叠。编码器的方法内部串行化，关闭等待在途调用结束。
 
 `UpdateRate` 失败会恢复旧配置；若恢复失败，返回 `h264.ErrUnusable`，实例只能关闭。尺寸／Level 变化由调用方创建候选实例并确认首个关键帧后再替换。错误支持 `errors.Is`，公共合同不包含 RDP 错误码。
 
 关闭 cgo 或不支持的平台可以编译 Go API，能力返回不支持。支持平台必须提供私有 SDK 和本机编译器。正式依赖在首个 Go 库版本发布后固定到实际版本；本地通过相邻仓库 workspace，产品构建通过源码锁和临时 modfile 接入，不使用不存在的远程版本。
+
+## HDR 色彩处理
+
+`color.New(color.Options{})` 按需创建设备；`Process(frame.RGBA16F, frame.BGRA)` 同步借用输入和可复用输出，保持尺寸，输出 sRGB／100 nit／全范围 BGRA8。输入为小端 binary16、BT.709 线性 scRGB，**1.0 始终等于 80 nit**。`PeakNits = 0` 表示未知，采用固定 1000 nit 参考假设；不能将显示峰值当作内容 MaxCLL。
+
+使用 libplacebo BT.2390 和默认色域映射，不启用动态峰值探测或自动曝光。设备、着色器及两个纹理复用，尺寸或像素越界、NaN／Inf 整帧拒绝。每个处理器串行执行，设备丢失最多重建一次，关闭等待在途调用并可重复调用。转换失败时不得消费目标缓冲。`QueryCapabilities().Compiled` 只说明编译支持，运行后端是否可用由 `New` 判断。
+
+`Options.Software` 仅用于 Windows 系统 WARP 验证；Unix 自动模式可以选择系统已有软件 Vulkan。三平台使用相同接口，实际原生运行以对应平台 CI 为准。Windows 合成转换与编码通过不代表真实 HDR 桌面已验收，当前结果见 [1440p／HDR 验证记录](../backend/docs/desktop-video-hdr.md)。
 
 本次迁移的实测结果、体积变化及发布顺序见 [验证记录](docs/integration-validation.md)。

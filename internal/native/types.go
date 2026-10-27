@@ -1,6 +1,9 @@
 package native
 
-import "errors"
+import (
+	"errors"
+	"termous/video/internal/limits"
+)
 
 var (
 	ErrUnsupported   = errors.New("video: native encoding is unavailable")
@@ -10,19 +13,19 @@ var (
 	ErrUnusable      = errors.New("video: encoder state cannot be restored")
 )
 
-type Config struct{ Width, Height, Bitrate, FPS, Level int }
+type Config struct{ Width, Height, Bitrate, FPS, Level, Matrix int }
 type Output struct {
 	Data              []byte
 	Keyframe, Skipped bool
 }
 
 func (c Config) Validate() error {
-	if c.Width < 16 || c.Height < 16 || c.Width > 1920 || c.Height > 1080 || c.Width%2 != 0 || c.Height%2 != 0 || !ValidRate(c.Bitrate, c.FPS) || (c.Level != 31 && c.Level != 40) || (c.Level == 31 && (c.Width > 1280 || c.Height > 720)) {
+	if !limits.Valid(c.Width, c.Height, c.Bitrate, c.FPS, c.Level) || (c.Matrix != 0 && c.Matrix != 709) {
 		return ErrInvalidConfig
 	}
 	return nil
 }
 
 func ValidRate(bitrate, fps int) bool {
-	return bitrate >= 100_000 && bitrate <= 8_000_000 && fps >= 1 && fps <= 30
+	return bitrate >= 100_000 && bitrate <= limits.MaxBitrate && fps >= 1 && fps <= limits.MaxFPS
 }

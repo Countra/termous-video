@@ -4,6 +4,7 @@ package h264
 import (
 	"sync"
 	"termous/video/frame"
+	"termous/video/internal/limits"
 	"termous/video/internal/native"
 )
 
@@ -19,15 +20,29 @@ type Level int
 
 const (
 	Level31 Level = 31
+	Level32 Level = 32
 	Level40 Level = 40
+	Level41 Level = 41
+	Level42 Level = 42
+	Level50 Level = 50
+	Level51 Level = 51
+)
+
+type Matrix int
+
+const (
+	// Matrix601 保留既有 BGRA 转换的有限范围语义。
+	Matrix601 Matrix = 0
+	Matrix709 Matrix = 709
 )
 
 // RateControl 的 Bitrate 单位为 bit/s，FPS 为编码帧率上限，不负责调用方调度。
 type RateControl struct{ Bitrate, FPS int }
 type Config struct {
-	Size  frame.Size
-	Rate  RateControl
-	Level Level
+	Size   frame.Size
+	Rate   RateControl
+	Level  Level
+	Matrix Matrix
 }
 type Options struct {
 	Keyframe    bool
@@ -48,7 +63,20 @@ type Capabilities struct {
 }
 
 func QueryCapabilities() Capabilities {
-	return Capabilities{Supported: native.Supported, MinSize: frame.Size{Width: 16, Height: 16}, MaxSize: frame.Size{Width: 1920, Height: 1080}, MinBitrate: 100_000, MaxBitrate: 8_000_000, MaxFPS: 30, Levels: []Level{Level31, Level40}}
+	return Capabilities{Supported: native.Supported, MinSize: frame.Size{Width: 16, Height: 16}, MaxSize: frame.Size{Width: 2560, Height: 1440}, MinBitrate: 100_000, MaxBitrate: limits.MaxBitrate, MaxFPS: limits.MaxFPS, Levels: []Level{Level31, Level32, Level40, Level41, Level42, Level50, Level51}}
+}
+
+// Validate 同时验证尺寸、宏块率和码率；MaxSize 的长短边允许互换。
+func (c Config) Validate() error { return c.native().Validate() }
+func (c Config) native() native.Config {
+	return native.Config{Width: c.Size.Width, Height: c.Size.Height, Bitrate: c.Rate.Bitrate, FPS: c.Rate.FPS, Level: int(c.Level), Matrix: int(c.Matrix)}
+}
+func MinimumLevel(size frame.Size, rate RateControl) (Level, error) {
+	level := limits.Minimum(size.Width, size.Height, rate.Bitrate, rate.FPS)
+	if level == 0 {
+		return 0, ErrInvalidConfig
+	}
+	return Level(level), nil
 }
 
 // Encoder 的调用可并发进入，但原生对象始终串行访问；Close 等待在途调用完成。
@@ -59,7 +87,7 @@ type Encoder struct {
 }
 
 func New(config Config) (*Encoder, error) {
-	c := native.Config{Width: config.Size.Width, Height: config.Size.Height, Bitrate: config.Rate.Bitrate, FPS: config.Rate.FPS, Level: int(config.Level)}
+	c := config.native()
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -76,7 +104,9 @@ func (e *Encoder) UpdateRate(rate RateControl) error {
 	if e.engine == nil {
 		return ErrClosed
 	}
-	if !native.ValidRate(rate.Bitrate, rate.FPS) {
+	candidate := e.config
+	candidate.Rate = rate
+	if candidate.Validate() != nil {
 		return ErrInvalidConfig
 	}
 	if err := e.engine.UpdateRate(rate.Bitrate, rate.FPS); err != nil {

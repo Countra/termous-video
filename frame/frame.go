@@ -30,7 +30,8 @@ func (f BGRA) Validate() error {
 	return nil
 }
 
-// I420 使用 BT.601 有限范围；奇数尺寸的色度平面按向上取整计算。
+// I420 保存有限范围 YUV 平面；默认转换为 BT.601，编码时须与 Config.Matrix 一致。
+// 奇数尺寸的色度平面按向上取整计算。
 type I420 struct {
 	Size
 	Y, U, V                   []byte

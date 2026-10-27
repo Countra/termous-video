@@ -23,13 +23,15 @@ func status(code C.int) error {
 		return nil
 	case C.TV_UNUSABLE:
 		return ErrUnusable
+	case C.TV_INVALID:
+		return ErrInvalidConfig
 	default:
 		return ErrNative
 	}
 }
 func New(c Config) (*Encoder, error) {
 	var pointer *C.tv_encoder
-	err := status(C.tv_create(C.tv_config{width: C.int(c.Width), height: C.int(c.Height), bitrate: C.int(c.Bitrate), fps: C.int(c.FPS), level: C.int(c.Level)}, &pointer))
+	err := status(C.tv_create(C.tv_config{width: C.int(c.Width), height: C.int(c.Height), bitrate: C.int(c.Bitrate), fps: C.int(c.FPS), level: C.int(c.Level), matrix: C.int(c.Matrix)}, &pointer))
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 typedef struct tv_encoder tv_encoder;
-typedef struct { int width, height, bitrate, fps, level; } tv_config;
+typedef struct { int width, height, bitrate, fps, level, matrix; } tv_config;
 typedef struct { uint8_t* data; size_t length; int stride; } tv_plane;
 typedef struct { tv_plane y, u, v; int width, height; } tv_i420;
 typedef struct { const uint8_t* data; int length, keyframe, skipped; } tv_output;

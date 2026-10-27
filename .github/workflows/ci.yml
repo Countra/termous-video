@@ -52,14 +52,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: python scripts/check.py --link --race
-      - name: Test native library and race boundaries (Unix)
-        if: runner.os != 'Windows'
-        run: python scripts/check.py --link --race
       - name: Set up Linux Vulkan runtime for synthetic tests
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers libvulkan1
+      - name: Test native library and race boundaries (Unix)
+        if: runner.os != 'Windows'
+        run: python scripts/check.py --link --race
       - name: Test installed libplacebo SDK (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}

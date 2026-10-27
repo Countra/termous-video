@@ -53,7 +53,12 @@ extern "C" int tv_encode_bgra(tv_encoder* e, const uint8_t* pixels, size_t lengt
     if (e->unusable) return TV_UNUSABLE;
     try {
         auto source=tv_buffer(e->source,width,height);
-        int status=tv_convert(pixels,length,width,height,stride,source);
+        int status=TV_OK;
+        if (e->config.matrix==709) {
+            status=libyuv::ARGBToI420Matrix(pixels,stride,source.y.data,source.y.stride,
+                source.u.data,source.u.stride,source.v.data,source.v.stride,
+                &libyuv::kArgbH709Constants,width,height) ? TV_FAILED : TV_OK;
+        } else status=tv_convert(pixels,length,width,height,stride,source);
         if (status!=TV_OK) return status;
         if (width==e->config.width && height==e->config.height) return tv_encode(e,source,keyframe,timestamp,out);
         auto scaled=tv_buffer(e->scaled,e->config.width,e->config.height);
