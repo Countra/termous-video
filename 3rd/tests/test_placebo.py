@@ -3,6 +3,7 @@
 import ast
 import configparser
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -11,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lib.layout import BUILD_ROOT
+from lib.layout import BUILD_ROOT, TOOLS_ROOT
 from lib.placebo import checks, manifest, recipes, review, sources
 from lib.placebo.layout import GLSLANG_ARCHIVES, archives, link_description
 from lib.platforms import TARGETS
@@ -33,6 +34,9 @@ class PlaceboTests(unittest.TestCase):
         self.assertNotIn("moltenvk", sources.dependencies("windows/amd64"))
         self.assertNotIn("spirv-cross", sources.dependencies("linux/amd64"))
         self.assertIn("cereal", sources.dependencies("darwin/arm64"))
+        for target in TARGETS:
+            self.assertIn("vulkan-headers", sources.dependencies(target))
+            self.assertEqual(len(sources.dependencies(target)), len(set(sources.dependencies(target))))
         lock["libplacebo"]["revision"] = "master"
         with self.assertRaises(ValueError):
             sources.validate_lock(lock)
@@ -86,6 +90,21 @@ class PlaceboTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "rendering"):
                     manifest.verify_component(sdk, target)
 
+    def test_sdk_requires_vulkan_headers_even_with_d3d11(self):
+        sdk = self.root / "sdk"
+        for target in TARGETS:
+            for relative in ("include/libplacebo/vulkan.h", "include/vulkan/vulkan.h",
+                             "include/vulkan/vulkan_core.h", "include/vulkan/vk_platform.h",
+                             "include/vk_video/vulkan_video_codecs_common.h"):
+                with self.subTest(target=target, header=relative):
+                    fixture(sdk, target)
+                    (sdk / relative).unlink()
+                    self.update_manifest(sdk)
+                    with self.assertRaisesRegex(ValueError, "missing required files"):
+                        manifest.verify_component(sdk, target)
+                    with self.assertRaisesRegex(ValueError, "missing required files"):
+                        manifest.verify_component(sdk, target, current_recipe=False)
+
     def test_upstream_execution_requires_exact_review_digest(self):
         with patch.object(review, "verify_sources"), self.assertRaisesRegex(ValueError, "approval"):
             review.verify_review("windows/amd64", {}, "0" * 64)
@@ -113,6 +132,43 @@ class PlaceboTests(unittest.TestCase):
                     self.assertRaisesRegex(RuntimeError, "failed"):
                 checks.run_render(binary, "test", "darwin/arm64", {"PLACEBO_ALLOW_NO_GPU": "1"})
 
+    def test_macos_crash_collects_stack_but_never_passes_on_successful_retry(self):
+        binary = self.root / "test"
+        log = self.root / "render.log"
+        with patch.object(checks, "managed", return_value=log), \
+                patch.object(checks.subprocess, "run", side_effect=[
+                    subprocess.CompletedProcess([], -11), subprocess.CompletedProcess([], 0)]) as run:
+            with self.assertRaisesRegex(RuntimeError, r"failed \(-11\)") as failure:
+                checks.run_render(binary, "test", "darwin/arm64", {"PLACEBO_ALLOW_NO_GPU": "1"})
+            self.assertIn("Crash diagnostics:", str(failure.exception))
+            self.assertIn("LLDB diagnostic exit code: 0", str(failure.exception))
+            command = run.call_args.args[0]
+            self.assertIn("--no-lldbinit", command)
+            self.assertIn("thread backtrace all", command)
+            self.assertEqual(command[-2:], ["--", str(binary)])
+            self.assertEqual(run.call_args.kwargs["timeout"], 60)
+
+    def test_macos_crash_keeps_original_error_when_diagnostics_fail(self):
+        binary = self.root / "test"
+        for error in (FileNotFoundError("xcrun missing"), subprocess.TimeoutExpired("lldb", 60)):
+            with self.subTest(error=type(error).__name__), \
+                    patch.object(checks, "managed", return_value=self.root / "render.log"), \
+                    patch.object(checks.subprocess, "run", side_effect=[
+                        subprocess.CompletedProcess([], -11), error]):
+                with self.assertRaisesRegex(RuntimeError, r"failed \(-11\)") as failure:
+                    checks.run_render(binary, "test", "darwin/arm64", {})
+                self.assertIn("LLDB diagnostics unavailable", str(failure.exception))
+
+    def test_successful_render_removes_stale_backtrace_without_retry(self):
+        log = self.root / "render.log"
+        backtrace = self.root / "render-backtrace.log"
+        backtrace.write_text("old failure")
+        with patch.object(checks, "managed", return_value=log), \
+                patch.object(checks.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+            self.assertEqual(checks.run_render(self.root / "test", "test", "darwin/arm64", {}), "passed")
+            run.assert_called_once()
+            self.assertFalse(backtrace.exists())
+
     def test_no_gpu_skip_is_explicit_and_macos_only(self):
         binary = self.root / "test"
         with patch.object(checks, "managed", return_value=self.root / "render.log"), \
@@ -136,6 +192,10 @@ class PlaceboTests(unittest.TestCase):
                             "  glslang = cxx.find_library('SPIRV')\n"
                             "endif\n\ncomponents.set('glslang', glslang.found())\n")
         glslang.write_text(glslang_original)
+        for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
+            module = self.root / "sources" / name / "src" / package / "__init__.py"
+            module.parent.mkdir(parents=True)
+            module.write_text(f"pinned_module = '{package}'\n")
         with patch.object(recipes, "managed", side_effect=lambda p: self.root / p):
             overlay = recipes.overlay_sources()
             self.assertEqual(source.read_text(), original)
@@ -144,6 +204,11 @@ class PlaceboTests(unittest.TestCase):
             patched = (overlay / "src/glsl/meson.build").read_text()
             self.assertNotIn("find_library", patched)
             self.assertIn("meson.get_external_property('termous_glslang_libraries')", patched)
+            for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
+                relative = f"{name}/src/{package}/__init__.py"
+                self.assertEqual((overlay / "3rdparty" / relative).read_bytes(),
+                                 (self.root / "sources" / relative).read_bytes())
+                self.assertFalse((self.root / "sources/libplacebo/3rdparty" / relative).exists())
             source.write_text("unexpected upstream change")
             with self.assertRaisesRegex(ValueError, "declaration changed"):
                 recipes.overlay_sources()
@@ -151,9 +216,33 @@ class PlaceboTests(unittest.TestCase):
             glslang.write_text("unexpected upstream change")
             with self.assertRaisesRegex(ValueError, "glslang dependency declaration changed"):
                 recipes.overlay_sources()
+            glslang.write_text(glslang_original)
+            (self.root / "sources/jinja/src/jinja2/__init__.py").unlink()
+            with self.assertRaisesRegex(ValueError, "Pinned Python generator source is missing: jinja"):
+                recipes.overlay_sources()
+
+    def test_generator_check_rejects_missing_or_unpinned_modules(self):
+        foreign = self.root / "other python packages"
+        foreign.mkdir()
+        env = os.environ.copy()
+        env.update(PYTHONPATH=str(foreign), PYTHONDONTWRITEBYTECODE="1")
+        command = [sys.executable, "-S", str(TOOLS_ROOT / "placebo/checks/generators.py"),
+                   str(self.root / "overlay")]
+        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No module named 'jinja2'", result.stderr)
+        module = foreign / "jinja2/__init__.py"
+        module.parent.mkdir()
+        module.write_text("")
+        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not loaded from pinned sources: jinja2", result.stderr)
 
     def test_all_platform_recipes_bind_pinned_archives_with_spaces_in_path(self):
         tools = {key: key for key in ("meson", "cc", "cxx", "pkgconfig", "sdk")}
+        vulkan = self.root / "sources/vulkan-headers/include/vulkan/vulkan.h"
+        vulkan.parent.mkdir(parents=True)
+        vulkan.write_bytes(b"fixture")
         for target in TARGETS:
             with self.subTest(target=target):
                 prefix = self.root / "dependencies with spaces" / target
@@ -174,6 +263,25 @@ class PlaceboTests(unittest.TestCase):
                 config.read(self.root / f"out/{target}/placebo/native.ini", encoding="utf-8")
                 actual = ast.literal_eval(config["properties"]["termous_glslang_libraries"])
                 self.assertEqual(actual, [path.as_posix() for path in paths[:-1]])
+                for option in ("c_args", "cpp_args"):
+                    flags = ast.literal_eval(config["built-in options"][option])
+                    self.assertIn("-I" + vulkan.parent.parent.as_posix(), flags)
+
+    def test_missing_pinned_vulkan_headers_never_fall_back_to_system(self):
+        prefix = self.root / "dependencies"
+        paths = [prefix / "lib" / name for name in GLSLANG_ARCHIVES]
+        paths.append(prefix / "include/glslang/build_info.h")
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"fixture")
+        for target in TARGETS:
+            with self.subTest(target=target), \
+                    patch.object(recipes, "managed", side_effect=lambda p: self.root / p), \
+                    patch.object(recipes, "run") as run, patch.object(recipes, "overlay_sources") as overlay:
+                with self.assertRaisesRegex(ValueError, "Pinned Vulkan headers are missing"):
+                    recipes.meson_build(target, prefix, {}, {}, 2)
+                overlay.assert_not_called()
+                run.assert_not_called()
 
     def test_missing_pinned_glslang_never_falls_back_to_system(self):
         prefix = self.root / "dependencies"

@@ -29,9 +29,10 @@ def verify_component(directory, target, *, current_recipe=True):
     libraries = {"lib/" + name for name in archives(target)}
     required = libraries | {"include/libplacebo/config.h", "include/libplacebo/renderer.h",
                             "include/libplacebo/colorspace.h", "include/libplacebo/gpu.h",
+                            "include/libplacebo/vulkan.h", "include/vulkan/vulkan.h",
+                            "include/vulkan/vulkan_core.h", "include/vulkan/vk_platform.h",
+                            "include/vk_video/vulkan_video_codecs_common.h",
                             "source-lock.json", "link.json"}
-    if target != "windows/amd64":
-        required.add("include/vulkan/vulkan.h")
     if not required <= payload.keys():
         raise ValueError("libplacebo SDK is missing required files")
     for name in payload:

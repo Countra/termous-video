@@ -33,9 +33,8 @@ def build_component(target, jobs, env, tools, destination, accepted):
     for name in archives(target):
         shutil.copyfile(prefix / "lib" / name, destination / "lib" / name)
     shutil.copytree(prefix / "include/libplacebo", destination / "include/libplacebo")
-    if target != "windows/amd64":
-        for name in ("vulkan", "vk_video"):
-            shutil.copytree(managed(f"sources/vulkan-headers/include/{name}"), destination / "include" / name)
+    for name in ("vulkan", "vk_video"):
+        shutil.copytree(managed(f"sources/vulkan-headers/include/{name}"), destination / "include" / name)
     shutil.copyfile(TOOLS_ROOT / "placebo-lock.json", destination / "source-lock.json")
     (destination / "link.json").write_text(json.dumps(link_description(target), indent=2) + "\n", encoding="utf-8")
     verification = verify_link(destination, target, tools, env)

@@ -32,6 +32,7 @@ int placebo_render_check(pl_gpu gpu, pl_log log)
                                     PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_HOST_READABLE);
     if (!input_fmt || !output_fmt)
         return 2;
+    fputs("HDR check: creating textures and renderer\n", stderr);
     pl_tex input = pl_tex_create(gpu, pl_tex_params(
         .w = W, .h = H, .format = input_fmt, .sampleable = true, .initial_data = source));
     pl_tex target = pl_tex_create(gpu, pl_tex_params(
@@ -64,8 +65,11 @@ int placebo_render_check(pl_gpu gpu, pl_log log)
     // 重复渲染覆盖着色器复用和资源清理；不通过窗口、交换链或桌面采集验证。
     for (int repeat = 0; repeat < 3; ++repeat) {
         memset(output, 0, sizeof(output));
-        if (!pl_render_image(renderer, &src, &dst, &params) ||
-            !pl_tex_download(gpu, pl_tex_transfer_params(.tex = target, .ptr = output)))
+        fprintf(stderr, "HDR check: rendering iteration %d\n", repeat + 1);
+        if (!pl_render_image(renderer, &src, &dst, &params))
+            goto cleanup;
+        fputs("HDR check: downloading pixels\n", stderr);
+        if (!pl_tex_download(gpu, pl_tex_transfer_params(.tex = target, .ptr = output)))
             goto cleanup;
         int previous = -1;
         for (int band = 0; band < 5; ++band) {
@@ -91,6 +95,7 @@ int placebo_render_check(pl_gpu gpu, pl_log log)
     puts("FP16 scRGB to SDR synthetic render passed");
     result = 0;
 cleanup:
+    fprintf(stderr, "HDR check: releasing render resources (result=%d)\n", result);
     pl_renderer_destroy(&renderer);
     pl_tex_destroy(gpu, &input);
     pl_tex_destroy(gpu, &target);

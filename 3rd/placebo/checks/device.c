@@ -47,7 +47,8 @@ int placebo_check(int mode)
     }
 #endif
     pl_log log = pl_log_create(PL_API_VER, pl_log_params(
-        .log_cb = pl_log_simple, .log_level = PL_LOG_INFO));
+        // CI 重定向 stdout 后崩溃会丢失缓冲日志，统一记录到 stderr。
+        .log_cb = pl_log_simple, .log_priv = stderr, .log_level = PL_LOG_INFO));
     int result = 5;
 #ifdef _WIN32
     struct pl_d3d11_params params = pl_d3d11_default_params;
@@ -74,7 +75,9 @@ int placebo_check(int mode)
 #endif
     pl_vulkan device = params.get_proc_addr ? pl_vulkan_create(log, &params) : NULL;
     if (device) {
+        fputs("HDR check: Vulkan device ready\n", stderr);
         result = placebo_render_check(device->gpu, log);
+        fputs("HDR check: destroying Vulkan device\n", stderr);
         pl_vulkan_destroy(&device);
     }
 #ifdef __linux__

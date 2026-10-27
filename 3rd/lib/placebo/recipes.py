@@ -74,6 +74,12 @@ def overlay_sources():
     path.write_text(before + start + "\n  glslang = declare_dependency(\n"
                     "    link_args: meson.get_external_property('termous_glslang_libraries'),\n"
                     "  )\n" + end + after, encoding="utf-8")
+    # 上游生成命令会重设 PYTHONPATH，必须填充它实际使用的子模块目录。
+    for name, package in (("jinja", "jinja2"), ("markupsafe", "markupsafe")):
+        generator_source = managed(f"sources/{name}/src")
+        if not (generator_source / package / "__init__.py").is_file():
+            raise ValueError(f"Pinned Python generator source is missing: {name}")
+        shutil.copytree(generator_source, overlay / "3rdparty" / name / "src")
     return overlay
 
 
@@ -82,15 +88,17 @@ def meson_build(target, prefix, tools, env, jobs):
     for path in [*libraries, prefix / "include/glslang/build_info.h"]:
         if not path.is_file():
             raise ValueError(f"Pinned glslang installation is incomplete: {path}")
+    vulkan_headers = managed("sources/vulkan-headers/include")
+    if not (vulkan_headers / "vulkan/vulkan.h").is_file():
+        raise ValueError(f"Pinned Vulkan headers are missing: {vulkan_headers}")
     source = overlay_sources()
     output = managed(f"out/{target}/placebo/libplacebo")
     config = managed(f"out/{target}/placebo/native.ini")
     config.parent.mkdir(parents=True, exist_ok=True)
     flags = ["-I" + (prefix / "include").as_posix(),
-             "-I" + managed("sources/fast-float/include").as_posix()]
+             "-I" + managed("sources/fast-float/include").as_posix(),
+             "-I" + vulkan_headers.as_posix()]
     link = ["-L" + (prefix / "lib").as_posix()]
-    if target != "windows/amd64":
-        flags.append("-I" + managed("sources/vulkan-headers/include").as_posix())
     if target == "darwin/arm64":
         flags += ["-mmacosx-version-min=12.0", "-isysroot", tools["sdk"]]
         link += ["-mmacosx-version-min=12.0", "-isysroot", tools["sdk"]]
@@ -111,12 +119,14 @@ def meson_build(target, prefix, tools, env, jobs):
         + "\n[properties]\ntermous_glslang_libraries = " + array(libraries) + "\n",
         encoding="utf-8")
     build_env = env.copy()
-    build_env["PYTHONPATH"] = os.pathsep.join(str(managed(f"sources/{name}/src"))
+    build_env["PYTHONPATH"] = os.pathsep.join(str(source / "3rdparty" / name / "src")
                                             for name in ("jinja", "markupsafe"))
     build_env["PKG_CONFIG_PATH"] = str(prefix / "lib/pkgconfig")
     build_env["PKG_CONFIG_LIBDIR"] = str(prefix / "lib/pkgconfig")
     # 源码覆盖层没有 Git 元数据，禁止版本脚本意外读取外层 termous-video 仓库。
     build_env["GIT_CEILING_DIRECTORIES"] = str(source.parent)
+    run([sys.executable, "-S", TOOLS_ROOT / "placebo/checks/generators.py", source],
+        "placebo-generators", build_env, timeout=30)
     command = [tools["meson"], "setup", output, source, "--native-file", config,
                "--prefix", prefix, "--libdir", "lib", "--buildtype=release", "--wrap-mode=nodownload",
                "-Ddefault_library=static", "-Dprefer_static=true", "-Dauto_features=disabled",

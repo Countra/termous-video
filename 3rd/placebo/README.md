@@ -12,7 +12,7 @@
 | libplacebo 7.387.0 | 色彩处理、HDR→SDR 和离屏渲染 | 三平台 |
 | glslang 16.6.0 | GLSL→SPIR-V 编译 | 三平台，关闭优化器和命令行程序 |
 | SPIRV-Cross | SPIR-V→HLSL／MSL | Windows、macOS |
-| Vulkan-Headers | Vulkan 头文件和代码生成注册表 | Linux、macOS |
+| Vulkan-Headers | Vulkan 头文件和代码生成注册表 | 三平台；Windows 的 Vulkan stub 也需要头文件 |
 | MoltenVK 1.4.2 | Vulkan→系统 Metal | macOS arm64，部署基线 12.0 |
 | cereal | MoltenVK 管线缓存序列化 | macOS，仅头文件 |
 | fast_float | 浮点文本转换兼容 | 构建时头文件 |
@@ -38,7 +38,7 @@ MoltenVK 1.4.2 为保留 macOS 12 基线的固定选择，不自动跟随上游�
 
 ## 构建与批准
 
-需要现有 Python 3.12+、CMake 3.24+、Ninja、Git、Meson 1.3+、pkg-config 和对应平台编译器。统一 SDK 构建仍需原有 NASM、LLVM、Go。脚本不安装工具、不改系统 PATH。Jinja／MarkupSafe 使用固定源码的纯 Python 模块，不执行安装器。
+需要现有 Python 3.12+、CMake 3.24+、Ninja、Git、Meson 1.3+、pkg-config 和对应平台编译器。统一 SDK 构建仍需原有 NASM、LLVM、Go。脚本不安装工具、不改系统 PATH。Jinja／MarkupSafe 使用固定源码的纯 Python 模块，复制到覆盖层中上游生成器实际使用的 `3rdparty/<依赖>/src`；不执行安装器。配置前使用 `python -S` 禁用系统 `site-packages`，校验模块加载位置与模板渲染，不依赖机器预装的 Jinja。
 
 `upstream-review.json` 记录已审查的上游构建文件及生成器摘要。`prepare` 只准备源码；`review` 只输出审查清单位置和摘要；`build` 必须传入已经批准的摘要，核对源码版本和文件内容后才执行。
 
@@ -53,6 +53,8 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 源码、覆盖层、依赖安装前缀、构建输出、日志和测试程序全部留在本仓库 `build` 内。Go 缓存尊重已有 `GOCACHE`／`GOMODCACHE`／`GOTMPDIR`，本工作区继续使用 `TEMP/go`。不改 pnpm 缓存。
 
 覆盖层把 D3D11 的 `spirv-cross-c-shared` 依赖改为静态 `spirv-cross-c`，并将 glslang 绑定到本次安装的三份静态归档；原始源码保持干净。Meson 的静态 `find_library` 不使用 `cpp_link_args` 中的 `-L` 搜索目录，因此这里使用已校验的绝对路径，既避免 macOS 找不到库，也避免意外选中系统安装的同名库或 SPIRV-Tools。libplacebo 配置使用 `--wrap-mode=nodownload` 和显式关闭的可选功能，构建不会自动获取未锁定依赖。
+
+三平台均显式使用锁定的 Vulkan-Headers。Windows 关闭 Vulkan 后端仍会编译 `vulkan/stubs.c`，因此构建不能依赖机器预装头文件；SDK 同时附带 `vulkan/` 和 `vk_video/`，使公开的 `libplacebo/vulkan.h` 可独立编译。这不启用 Windows Vulkan 后端，也不增加 Vulkan 运行时 DLL。
 
 重复构建会刷新 CMake 配置，并重新建立 libplacebo 的 Meson 输出目录，确保当前编译器、静态选项与依赖路径生效；不会沿用旧机器配置。源码下载缓存保留，CMake 依赖的对象产物仍可按构建工具判定复用。
 
@@ -74,6 +76,8 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 结果在 `build/checks/placebo/<平台>/result.json`，详细日志在 `build/logs/placebo-*.log`。cgo 缓存键包含 SDK 头文件和静态库内容摘要，原地更新 SDK 后会重新链接。测试只使用合成数据，不读取桌面，也不创建显示窗口。这证明 SDK 能执行转换，不代表真实 HDR 桌面链路已经修复或完成画质／性能验收。
 
+设备日志写入 stderr，渲染、回读和清理记录执行阶段，避免崩溃时丢失 stdout 缓冲。macOS 若被信号终止，使用系统 `xcrun lldb` 重跑同一合成程序并记录所有线程的调用栈，禁止读取用户 LLDB 初始化文件；诊断限时 60 秒，原失败结果保持不变。调用栈保存到 `build/logs/placebo-*-render-backtrace.log`，由现有 CI 日志步骤上传。设备创建耗时警告不能代替崩溃原因，SIGSEGV 也不能归类为无 GPU。
+
 ## CI 发布
 
 沿用 **Build video SDK pull request** 手动触发工作流，三平台从同一提交构建后创建一个 SDK PR，不自动合并。批准摘要固定在工作流中；升级上游文件需要重新审查和批准，禁止自动把刚计算的摘要当作批准。
@@ -84,6 +88,8 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 Windows amd64 已使用 MinGW64 GCC 完成静态构建、C／全归档／cgo 调用，以及与现有私有 OpenH264、libyuv 的全归档共同链接。D3D11 WARP 和 NVIDIA GeForce RTX 4060 Ti 均通过三轮合成 scRGB→SDR 渲染；测试确认 D3D11、DXGI、D3DCompiler 47 从 Windows 系统目录加载。动态导入只有系统库，没有 MSYS 或额外的第三方运行时 DLL。
 
-现有视频库的原生测试、race 与最终链接回归通过；三平台已有编解码 SDK 的完整性校验通过。Python 工具测试运行 59 项，58 项通过，1 项因本机无法创建符号链接而跳过。Linux、macOS 的配方完成静态检查，尚未在本机实际编译或运行，需由三平台手动 SDK CI 补齐记录。
+前轮已完成现有视频库的原生测试、race、最终链接回归和三平台编解码 SDK 完整性校验。本轮补齐 Windows Vulkan-Headers 后，重新完成 Windows 组件构建、C／全归档／cgo 链接和 WARP 合成渲染。Python 工具测试运行 65 项，64 项通过，1 项因本机无法创建符号链接而跳过。GLSL 和 Vulkan 源码生成器已在 `python -S` 禁用系统包的条件下执行通过，产物位于 `build/checks/placebo/generators-isolated`。
+
+Linux、macOS 的配方完成静态检查，本机没有这两个平台的运行环境。Linux 生成器修复仍待 CI 完整构建确认。macOS CI 已通过 C／全归档链接及 API 验证，但合成渲染发生 SIGSEGV；现有日志不足以定位根因，已补齐阶段日志与自动调用栈采集，尚不能宣称 macOS 渲染问题已修复。
 
 本机组件产物留在 `build/install/placebo/windows/amd64/verified-*/placebo`；既有 `sdk/` 文件未替换。渲染结果见 `build/checks/placebo/windows/amd64/result.json`，硬件和 WARP 日志分别为 `build/logs/placebo-hardware-render.log`、`build/logs/placebo-c-render.log`。

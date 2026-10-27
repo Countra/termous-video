@@ -42,12 +42,13 @@ def source_lock():
 def dependencies(target):
     if target not in TARGETS:
         raise ValueError(f"Unsupported libplacebo target: {target}")
-    common = ["libplacebo", "glslang", "fast-float", "jinja", "markupsafe"]
+    # D3D11 构建仍编译 Vulkan stub，公开头文件也依赖 Vulkan-Headers。
+    common = ["libplacebo", "glslang", "fast-float", "jinja", "markupsafe", "vulkan-headers"]
     if target == "windows/amd64":
         return [*common, "spirv-cross"]
     if target == "linux/amd64":
-        return [*common, "vulkan-headers"]
-    return [*common, "vulkan-headers", "spirv-cross", "moltenvk", "cereal"]
+        return common
+    return [*common, "spirv-cross", "moltenvk", "cereal"]
 
 
 def prepare(target, env):

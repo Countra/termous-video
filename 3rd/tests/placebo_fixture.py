@@ -10,10 +10,11 @@ from lib.sdk_manifest import inventory
 
 def fixture(directory, target):
     files = {"lib/" + name: b"!<arch>\n" for name in archives(target)}
-    for name in ("config.h", "renderer.h", "colorspace.h", "gpu.h"):
+    for name in ("config.h", "renderer.h", "colorspace.h", "gpu.h", "vulkan.h"):
         files["include/libplacebo/" + name] = b"header"
-    if target != "windows/amd64":
-        files["include/vulkan/vulkan.h"] = b"vulkan"
+    for name in ("vulkan/vulkan.h", "vulkan/vulkan_core.h", "vulkan/vk_platform.h",
+                 "vk_video/vulkan_video_codecs_common.h"):
+        files["include/" + name] = b"vulkan"
     files.update({"source-lock.json": json.dumps(source_lock()).encode(),
                   "link.json": json.dumps(link_description(target)).encode()})
     for name, content in files.items():

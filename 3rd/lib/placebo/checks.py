@@ -20,10 +20,31 @@ def sdk_fingerprint(sdk):
     return hashlib.sha256(json.dumps(inventory(sdk), sort_keys=True).encode()).hexdigest()
 
 
+def macos_crash_backtrace(binary, arguments, env, log):
+    # 只重跑合成验证程序，禁用用户 LLDB 初始化文件；诊断结果不改变原失败状态。
+    command = ["/usr/bin/xcrun", "lldb", "--no-lldbinit", "--batch",
+               "--one-line", "settings set target.disable-aslr false", "--one-line", "run",
+               "--one-line-on-crash", "thread backtrace all", "--", str(binary), *arguments]
+    try:
+        with log.open("w", encoding="utf-8") as stream:
+            try:
+                result = subprocess.run(command, env=env, cwd=binary.parent, stdout=stream,
+                                        stderr=subprocess.STDOUT, timeout=60, check=False)
+                stream.write(f"\nLLDB diagnostic exit code: {result.returncode}\n")
+            except (OSError, subprocess.TimeoutExpired) as error:
+                stream.write(f"\nLLDB diagnostics unavailable: {error}\n")
+        tail = "\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-60:])
+        return f"\nCrash diagnostics: {log}\n{tail}"
+    except OSError as error:
+        return f"\nUnable to save crash diagnostics: {error}"
+
+
 def run_render(binary, label, target, env):
     arguments = ["--software"] if target.startswith("windows/") else []
     log = managed(f"logs/{label}.log")
     log.parent.mkdir(parents=True, exist_ok=True)
+    backtrace = log.with_name(log.stem + "-backtrace.log")
+    backtrace.unlink(missing_ok=True)
     try:
         with log.open("w", encoding="utf-8") as stream:
             result = subprocess.run([str(binary), *arguments], env=env, cwd=binary.parent,
@@ -37,6 +58,8 @@ def run_render(binary, label, target, env):
         print(f"[{label}] GPU unavailable; runtime validation is incomplete; log: {log}")
         return "unavailable"
     tail = "\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-30:])
+    if target == "darwin/arm64" and result.returncode < 0:
+        tail += macos_crash_backtrace(binary, arguments, env, backtrace)
     raise RuntimeError(f"{label} failed ({result.returncode}); log: {log}\n{tail}")
 
 
@@ -47,7 +70,7 @@ def verify_link(sdk, target, tools, env):
     source = TOOLS_ROOT / "placebo/checks"
     compile_flags = ["-std=c11", "-O2", "-DPL_STATIC", "-I", str(sdk / "include")]
     if target == "darwin/arm64":
-        compile_flags += ["-mmacosx-version-min=12.0"]
+        compile_flags += ["-mmacosx-version-min=12.0", "-g"]
     names = ["main", "device", "render"]
     if target == "darwin/arm64":
         names.append("metal")
