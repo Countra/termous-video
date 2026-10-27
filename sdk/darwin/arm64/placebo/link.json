@@ -1,0 +1,42 @@
+{
+  "archives": [
+    "lib/libplacebo.a",
+    "lib/libMoltenVK.a",
+    "lib/libMoltenVK_ShaderConverter.a",
+    "lib/libMoltenVK_Common.a",
+    "lib/libspirv-cross-msl.a",
+    "lib/libspirv-cross-reflect.a",
+    "lib/libspirv-cross-glsl.a",
+    "lib/libspirv-cross-core.a",
+    "lib/libSPIRV.a",
+    "lib/libglslang.a",
+    "lib/libglslang-default-resource-limits.a"
+  ],
+  "compile_flags": [
+    "-DPL_STATIC",
+    "-std=c11"
+  ],
+  "system_flags": [
+    "-mmacosx-version-min=12.0",
+    "-lc++",
+    "-lobjc",
+    "-Wl,-ObjC",
+    "-framework",
+    "Foundation",
+    "-framework",
+    "Metal",
+    "-framework",
+    "AppKit",
+    "-framework",
+    "IOKit",
+    "-framework",
+    "IOSurface",
+    "-framework",
+    "QuartzCore",
+    "-framework",
+    "CoreGraphics"
+  ],
+  "backend": "vulkan",
+  "vulkan_loader": "static_moltenvk",
+  "symbol_renaming": false
+}
