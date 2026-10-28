@@ -56,3 +56,25 @@ extern "C" int tv_test_decode(const uint8_t* data,int length,int* width,int* hei
         return TV_OK;
     } catch (...) { return TV_FAILED; }
 }
+
+// 使用同一解码器逐个提交完整访问单元，验证速率更新后的参考链而非孤立关键帧。
+extern "C" int tv_test_decode_sequence(const uint8_t* data,int total,const int* lengths,int count,int width,int height) {
+    if (!data || !lengths || count<1 || count>256 || total<1) return TV_INVALID;
+    try {
+        ISVCDecoder* raw=nullptr;
+        if (WelsCreateDecoder(&raw) || !raw) return TV_FAILED;
+        auto release=[](ISVCDecoder* p){p->Uninitialize();WelsDestroyDecoder(p);};
+        std::unique_ptr<ISVCDecoder,decltype(release)> decoder(raw,release);
+        SDecodingParam params{};params.sVideoProperty.eVideoBsType=VIDEO_BITSTREAM_AVC;
+        if (decoder->Initialize(&params)) return TV_FAILED;
+        int offset=0;
+        for (int i=0;i<count;++i) {
+            if (lengths[i]<1 || lengths[i]>total-offset) return TV_INVALID;
+            unsigned char* planes[3]{};SBufferInfo info{};
+            if (decoder->DecodeFrameNoDelay(data+offset,lengths[i],planes,&info)!=dsErrorFree || info.iBufferStatus!=1 ||
+                info.UsrData.sSystemBuffer.iWidth!=width || info.UsrData.sSystemBuffer.iHeight!=height) return TV_FAILED;
+            offset+=lengths[i];
+        }
+        return offset==total ? TV_OK : TV_INVALID;
+    } catch (...) { return TV_FAILED; }
+}

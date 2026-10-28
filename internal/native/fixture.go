@@ -6,6 +6,7 @@ package native
 #include <stdint.h>
 int tv_test_rate(void);
 int tv_test_decode(const uint8_t*, int, int*, int*, int*);
+int tv_test_decode_sequence(const uint8_t*, int, const int*, int, int, int);
 */
 import "C"
 
@@ -16,6 +17,22 @@ func TestRateBoundary() int { return int(C.tv_test_rate()) }
 type DecodedSample struct {
 	Width, Height int
 	YUV           [3]int
+}
+
+func TestDecodeSequence(frames [][]byte, width, height int) error {
+	if len(frames) == 0 || len(frames) > 256 {
+		return ErrNative
+	}
+	var data []byte
+	lengths := make([]C.int, len(frames))
+	for i, frame := range frames {
+		if len(frame) == 0 || len(data)+len(frame) > 64<<20 {
+			return ErrNative
+		}
+		lengths[i] = C.int(len(frame))
+		data = append(data, frame...)
+	}
+	return status(C.tv_test_decode_sequence((*C.uint8_t)(unsafe.Pointer(&data[0])), C.int(len(data)), &lengths[0], C.int(len(lengths)), C.int(width), C.int(height)))
 }
 
 func TestDecode(data []byte) (DecodedSample, error) {

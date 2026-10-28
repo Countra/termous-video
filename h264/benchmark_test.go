@@ -11,11 +11,12 @@ func BenchmarkDesktopEncoding(b *testing.B) {
 		b.Skip("native SDK unavailable")
 	}
 	for _, s := range []struct {
-		name          string
-		width, height int
-	}{{"1080p", 1920, 1080}, {"4K_to_1080p", 3840, 2160}} {
+		name                      string
+		width, height             int
+		outputWidth, outputHeight int
+	}{{"1080p", 1920, 1080, 1920, 1080}, {"1440p", 2560, 1440, 2560, 1440}, {"4K_to_1080p", 3840, 2160, 1920, 1080}} {
 		b.Run(s.name, func(b *testing.B) {
-			e, err := New(Config{Size: frame.Size{Width: 1920, Height: 1080}, Rate: RateControl{Bitrate: 2000000, FPS: 30}, Level: Level40})
+			e, err := New(Config{Size: frame.Size{Width: s.outputWidth, Height: s.outputHeight}, Rate: RateControl{Bitrate: 8_000_000, FPS: 60}, Level: Level51})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -32,7 +33,7 @@ func BenchmarkDesktopEncoding(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				pixels[(i*4)%len(pixels)]++
-				if _, err := e.EncodeBGRA(f, Options{Keyframe: i%30 == 0, TimestampMS: int64(i * 33)}); err != nil {
+				if _, err := e.EncodeBGRA(f, Options{Keyframe: i%60 == 0, TimestampMS: int64(i) * 1000 / 60}); err != nil {
 					b.Fatal(err)
 				}
 			}
