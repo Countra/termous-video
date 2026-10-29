@@ -32,7 +32,7 @@ func (p *Processor) Backend() string { return C.GoString(C.tv_color_backend(p.pt
 func (p *Processor) Failed() bool    { return C.tv_color_failed(p.ptr) != 0 }
 func (p *Processor) Process(src frame.RGBA16F, dst frame.BGRA) error {
 	status := C.tv_color_process(p.ptr, (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(src.Pixels))), C.size_t(len(src.Pixels)),
-		C.int(src.Width), C.int(src.Height), C.int(src.Stride), C.float(src.PeakNits),
+		C.int(src.Width), C.int(src.Height), C.int(src.Stride), C.float(src.SDRWhiteNits),
 		(*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(dst.Pixels))), C.size_t(len(dst.Pixels)), C.int(dst.Stride))
 	runtime.KeepAlive(src)
 	runtime.KeepAlive(dst)

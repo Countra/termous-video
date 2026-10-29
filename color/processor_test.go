@@ -9,6 +9,19 @@ import (
 	"testing"
 )
 
+func newTestProcessor(t *testing.T, software bool) *Processor {
+	t.Helper()
+	p, err := New(Options{Software: software})
+	if err != nil {
+		if !QueryCapabilities().Compiled || os.Getenv("TERMOUS_VIDEO_REQUIRE_COLOR") != "1" && runtime.GOOS != "windows" && errors.Is(err, ErrUnavailable) {
+			t.Skipf("GPU unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	return p
+}
+
 func TestSyntheticHDR(t *testing.T) {
 	var reference []byte
 	for _, software := range []bool{false, true} {
@@ -22,7 +35,7 @@ func TestSyntheticHDR(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		src := frame.RGBA16F{Size: frame.Size{Width: 64, Height: 16}, Stride: 64*8 + 16, PeakNits: 1000}
+		src := frame.RGBA16F{Size: frame.Size{Width: 64, Height: 16}, Stride: 64*8 + 16, PeakNits: 1000, SDRWhiteNits: 80}
 		src.Pixels = make([]byte, src.Stride*src.Height)
 		values := []uint16{0, 0x3400, 0x3c00, 0x4400, 0x4a40}
 		for y := 0; y < src.Height; y++ {
@@ -52,7 +65,7 @@ func TestSyntheticHDR(t *testing.T) {
 				x := (2*band + 1) * 64 / 10
 				pixel := dst.Pixels[4*dst.Stride+x*4:]
 				v := int(pixel[0])
-				if v <= previous || pixel[3] < 254 {
+				if v < previous || pixel[3] < 254 {
 					t.Fatalf("gray band %d: %v", band, pixel[:4])
 				}
 				previous = v

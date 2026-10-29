@@ -7,23 +7,32 @@
 #include <dlfcn.h>
 #endif
 
-static int prepare_renderer(tv_color *s) {
+static int prepare_dispatch(tv_color *s) {
   if (!s->device)
     return 0;
   s->gpu = s->device->gpu;
   if (!pl_find_fmt(s->gpu, PL_FMT_FLOAT, 4, 16, 16, PL_FMT_CAP_SAMPLEABLE) ||
+      !pl_find_fmt(s->gpu, PL_FMT_UNORM, 4, 16, 16, PL_FMT_CAP_LINEAR) ||
       !pl_find_fmt(s->gpu, PL_FMT_UNORM, 4, 8, 8,
                    PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_HOST_READABLE))
     return 0;
-  s->renderer = pl_renderer_create(s->log, s->gpu);
-  return s->renderer != NULL;
+  pl_matrix3x3 matrix = pl_get_color_mapping_matrix(
+      pl_raw_primaries_get(PL_COLOR_PRIM_BT_709),
+      pl_raw_primaries_get(PL_COLOR_PRIM_BT_2020), PL_INTENT_RELATIVE_COLORIMETRIC);
+  // libplacebo 的矩阵按行存储；GLSL uniform 使用列优先布局。
+  for (int row = 0; row < 3; row++)
+    for (int col = 0; col < 3; col++)
+      s->to_work[col * 3 + row] = matrix.m[row][col];
+  s->dispatch = pl_dispatch_create(s->log, s->gpu);
+  return s->dispatch != NULL;
 }
 
 void tv_color_destroy(tv_color *s) {
   if (!s)
     return;
   if (s->gpu) {
-    pl_renderer_destroy(&s->renderer);
+    pl_shader_obj_destroy(&s->color_map);
+    pl_dispatch_destroy(&s->dispatch);
     pl_tex_destroy(s->gpu, &s->input);
     pl_tex_destroy(s->gpu, &s->output);
   }
@@ -51,7 +60,7 @@ tv_color *tv_color_create(int software) {
   p.allow_software = software != 0;
   p.force_software = software != 0;
   s->device = pl_d3d11_create(s->log, &p);
-  if (prepare_renderer(s))
+  if (prepare_dispatch(s))
     return s;
   // 设备和必要纹理格式都可用才算初始化成功；回落仅使用系统 WARP。
   pl_d3d11_destroy(&s->device);
@@ -60,7 +69,7 @@ tv_color *tv_color_create(int software) {
     p.force_software = true;
     p.allow_software = true;
     s->device = pl_d3d11_create(s->log, &p);
-    if (prepare_renderer(s))
+    if (prepare_dispatch(s))
       return s;
   }
 #else
@@ -82,7 +91,7 @@ tv_color *tv_color_create(int software) {
 #endif
   if (p.get_proc_addr)
     s->device = pl_vulkan_create(s->log, &p);
-  if (prepare_renderer(s))
+  if (prepare_dispatch(s))
     return s;
 #endif
   tv_color_destroy(s);

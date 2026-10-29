@@ -48,9 +48,10 @@ func (p *Processor) Backend() string {
 }
 
 // Process 同步借用输入与目标，成功输出为 sRGB/BGRA8，全范围，不改变尺寸。
+// GPU 传输要求输入步长按 RGBA16F 像素（8 字节）、输出步长按 BGRA8 像素（4 字节）对齐。
 // 失败时目标内容不可使用；设备失败最多重建一次，不返回部分画面。
 func (p *Processor) Process(src frame.RGBA16F, dst frame.BGRA) error {
-	if src.Validate() != nil || dst.Validate() != nil || src.Size != dst.Size {
+	if src.Validate() != nil || dst.Validate() != nil || src.Size != dst.Size || src.Stride%8 != 0 || dst.Stride%4 != 0 {
 		return frame.ErrInvalid
 	}
 	p.mu.Lock()

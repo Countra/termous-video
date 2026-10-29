@@ -82,9 +82,15 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 ## HDR 色彩处理
 
-`color.New(color.Options{})` 按需创建设备；`Process(frame.RGBA16F, frame.BGRA)` 同步借用输入和可复用输出，保持尺寸，输出 sRGB／100 nit／全范围 BGRA8。输入为小端 binary16、BT.709 线性 scRGB，**1.0 始终等于 80 nit**。`PeakNits = 0` 表示未知，采用固定 1000 nit 参考假设；不能将显示峰值当作内容 MaxCLL。
+`color.New(color.Options{})` 按需创建设备；`Process(frame.RGBA16F, frame.BGRA)` 同步借用输入和可复用输出，保持尺寸，输出 sRGB／100 nit／全范围 BGRA8。输入为小端 binary16、BT.709 线性 scRGB，**1.0 始终等于 80 nit**。`SDRWhiteNits` 必须是该帧对应的已知桌面白电平（有限正数，最大 10000 nit）；零、未知或会导致派生系数溢出的值返回 `frame.ErrInvalid`。`PeakNits = 0` 仍表示未知显示峰值，该字段不驱动桌面曝光，也不冒充内容 MaxCLL。
 
-使用 libplacebo BT.2390 和默认色域映射，不启用动态峰值探测或自动曝光。设备、着色器及两个纹理复用，尺寸或像素越界、NaN／Inf 整帧拒绝。每个处理器串行执行，设备丢失最多重建一次，关闭等待在途调用并可重复调用。转换失败时不得消费目标缓冲。`QueryCapabilities().Compiled` 只说明编译支持，运行后端是否可用由 `New` 判断。
+固定桌面策略依次执行 `80 / SDRWhiteNits` 白电平归一化、真实 BT.709→BT.2020 线性矩阵变换、libplacebo Mobius 高光压缩及 relative colorimetric 色域映射。输出按 100 nit 计算，GPU 工作值换算为 libplacebo 的 203 nit 单位；拐点为 0.9，固定映射范围为桌面白色的 10 倍，`film_strength=0`。这不是物理显示峰值。动态峰值、自动曝光、局部增强、色域扩张、逆向 HDR 和抖动均关闭。普通白色参考输出约为 249，给高光保留空间。
+
+采用显式采样／自定义参数 Shader／`pl_shader_color_map_ex`／dispatch 单路径，不使用 renderer Hook。合法负 scRGB 分量保留到实际色域转换；未知或不支持必要 LUT 格式的设备明确返回不可用。设备、映射状态、着色器及两个图像纹理复用，白电平只更新动态 uniform；稳态每帧一次图像上传、一次转换派发和一次下载。尺寸或像素越界、NaN／Inf 整帧拒绝。每个处理器串行执行，设备丢失最多重建一次，关闭等待在途调用并可重复调用。转换失败时不得消费目标缓冲。`QueryCapabilities().Compiled` 只说明编译支持，运行后端是否可用由 `New` 判断。
+
+输入步长须按 8 字节像素对齐，输出步长须按 4 字节像素对齐；允许行间填充，最后一行可省略尾部填充。不满足布局要求时在 GPU 传输前返回 `frame.ErrInvalid`，不影响之后的有效帧处理。
+
+合成测试用独立标量公式检查灰阶与高光；`video_native_fixture` 额外检查派发次数、白电平变更时的 Shader 复用，以及同帧无损 PNG／H.264 实际解码。VUI 由编码器自身的原生回归独立检查；跨模块联调测试放在 `color` 包，保持独立 `h264` 包的测试与消费者都不引入 GPU 依赖。设置 `TERMOUS_HDR_FIXTURE_OUTPUT` 可保存合成素材；默认测试不写文件、不采集桌面。基准 `BenchmarkHDRPipeline` 预热 30 帧后报告平均、P95、吞吐及 Go 分配。
 
 `Options.Software` 仅用于 Windows 系统 WARP 验证；Unix 自动模式可以选择系统已有软件 Vulkan。三平台使用相同接口，实际原生运行以对应平台 CI 为准。Windows 合成转换与编码通过不代表真实 HDR 桌面已验收，当前结果见 [1440p／HDR 验证记录](../backend/docs/desktop-video-hdr.md)。
 
