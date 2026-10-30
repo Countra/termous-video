@@ -66,7 +66,7 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 调用者计算目标尺寸及单调递增的毫秒时间戳。BGRA 输入支持行填充，I420 输入允许三个平面使用独立步长；默认保留 BT.601 有限范围转换，`Config.Matrix = h264.Matrix709` 显式选择 BT.709。缩放仍为双线性。VUI 标记 BT.709 原色、实际矩阵、sRGB 传递函数和有限范围；`EncodeI420` 的调用方应提供与配置一致的 I420。
 
-编码输出宽高必须为偶数，最小 16×16，最大长边 2560、短边 1440，最高 60fps／24Mbps。`Config.Validate` 和 `UpdateRate` 联合校验尺寸、宏块率、码率及 Level，不能任意拼接独立最大值；`MinimumLevel` 返回满足整个组合的最低等级。独立帧和转换接口仍支持更小或奇数尺寸。编码器不创建观看预设或网络预算。
+编码输出宽高必须为偶数，最小 16×16，最大长边 2560、短边 1440，最高 60fps／100Mbps。`Config.Validate` 和 `UpdateRate` 联合校验尺寸、宏块率、码率及 Level，不能任意拼接独立最大值；`MinimumLevel` 返回满足整个组合的最低等级。独立帧和转换接口仍支持更小或奇数尺寸。编码器不创建观看预设或网络预算。
 
 | 输出组合 | 最低等级（码率仍需单独满足该等级） |
 |---|---|

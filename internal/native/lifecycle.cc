@@ -24,7 +24,7 @@ extern "C" int tv_create(tv_config c, tv_encoder** output) {
         if (e->codec->GetDefaultParams(&p)) return TV_FAILED;
         p.iUsageType=SCREEN_CONTENT_REAL_TIME;
         p.iPicWidth=c.width; p.iPicHeight=c.height;
-        p.iTargetBitrate=c.bitrate; p.iMaxBitrate=c.level==31 ? 14000000 : (c.level==32 || c.level==40) ? 20000000 : 24000000;
+        p.iTargetBitrate=c.bitrate; p.iMaxBitrate=tv_level_bitrate(c.level);
         p.iRCMode=RC_BITRATE_MODE; p.fMaxFrameRate=float(c.fps);
         p.iTemporalLayerNum=1; p.iSpatialLayerNum=1;
         p.uiIntraPeriod=c.fps*2; p.bEnableFrameSkip=true;
