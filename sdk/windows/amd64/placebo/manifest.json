@@ -362,7 +362,7 @@
     },
     "lib/libspirv-cross-c.a": {
       "bytes": 196370,
-      "sha256": "12836385f735a7a84a09abe4cad13f8ee303e1b719b91d33acb146a874905c07"
+      "sha256": "1478c90743f784f4eb6f27293a719392a5666a8ed25bca523d3645c8e67d2f7f"
     },
     "lib/libspirv-cross-core.a": {
       "bytes": 1014972,

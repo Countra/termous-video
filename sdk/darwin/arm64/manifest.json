@@ -5,12 +5,12 @@
   },
   "files": {
     "README.md": {
-      "bytes": 648,
-      "sha256": "4de8d9a0bdac47f7fa16cb32544bc9819a9f00a81bea6e69598865c0854a6947"
+      "bytes": 662,
+      "sha256": "8b1e422d586d5057a70cf503e2f69907c9e8ef96902f9ca85df823f065e788f7"
     },
     "build-lock.json": {
-      "bytes": 348,
-      "sha256": "26d38c83283fff58cc73518301a65445359a7e1875e0165d7f08ad133bf6b67e"
+      "bytes": 356,
+      "sha256": "e2fa79b1e3042a2f74ee6d5b5eaf8486b18b26cf276a842a1a01bbc6c73d6946"
     },
     "include/libyuv.h": {
       "bytes": 1042,
@@ -113,36 +113,24 @@
       "sha256": "58a7d2fe9c1ef224dc796175c4cf0df1a26885705e6b456765bdf895da077bb6"
     },
     "include/termous_video_symbols.h": {
-      "bytes": 85086,
-      "sha256": "767e1f4aa5bfca21ea3d01722fc92c7e217f157b499f82c4509c878172323f2b"
+      "bytes": 104956,
+      "sha256": "4611d5aef4f0f178c8781e84ef5d6d31e8a9c4aedc88dce9a8dd561070c5194e"
     },
-    "include/wels/codec_api.h": {
-      "bytes": 21178,
-      "sha256": "21f29b20c24f7c7946f2e243d0bc2532fb3542f6c28af338209477e70d9036c9"
+    "include/x264.h": {
+      "bytes": 49134,
+      "sha256": "d1ae732dc908ab97bc55da5b8eb6d8c2cb610951a91fe7b0c7c21607ff0a8f85"
     },
-    "include/wels/codec_app_def.h": {
-      "bytes": 33380,
-      "sha256": "a40581a24263866dca19911928f7bc4eb354ff78d9dd56dbf0f55fc4fd923726"
+    "include/x264_config.h": {
+      "bytes": 346,
+      "sha256": "d2b4cecea633aa76a73530283c3d61b7942ff300e605d8374a5f5e09152212d1"
     },
-    "include/wels/codec_def.h": {
-      "bytes": 7630,
-      "sha256": "f974d269b5935e8dc7265b8bfc02f60e5185b4d6165d30541d2758a4506f1979"
-    },
-    "include/wels/codec_ver.h": {
-      "bytes": 420,
-      "sha256": "9a241e20b7c9221a5786cccd9eae3afed91afba3525b5b9b16c2101976516f94"
-    },
-    "lib/libtermous_video_openh264.a": {
-      "bytes": 1650648,
-      "sha256": "78dce94d45735597608f2c0ed3a3048c6c4ea8a7b1da711790f256033a506a85"
+    "lib/libtermous_video_x264.a": {
+      "bytes": 848344,
+      "sha256": "af9d47b693bd81df57775c30c0ed598bc3f222501e3e82d72d8e781f3ea7960f"
     },
     "lib/libtermous_video_yuv.a": {
       "bytes": 768344,
       "sha256": "b40f437b61c8a7f3294784f68a9cab7761c3a796d732948751ef759b513f377f"
-    },
-    "licenses/OpenH264-LICENSE": {
-      "bytes": 1295,
-      "sha256": "dd5c1c9668512530fa5a96e4c29ac4033d70a7eeb0eed7a42fddb6dd794ebdbb"
     },
     "licenses/libyuv-LICENSE": {
       "bytes": 1506,
@@ -151,6 +139,10 @@
     "licenses/libyuv-PATENTS": {
       "bytes": 1387,
       "sha256": "4da84211f947c6f9f7dd8fbce513e1522e01833407ae732b8c9a2bbb75fed495"
+    },
+    "licenses/x264-COPYING": {
+      "bytes": 17992,
+      "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670"
     },
     "placebo/include/libplacebo/cache.h": {
       "bytes": 9064,
@@ -494,27 +486,27 @@
     },
     "placebo/lib/libMoltenVK.a": {
       "bytes": 3236616,
-      "sha256": "735f2b02865242d1ed32aecc8f25215f4cb51a0c1f7c00d602647a5665921e9a"
+      "sha256": "ce9aa55cb06a9bc78ed6c7f3329010fb05ed7b1296072890dba0d972d7f0447a"
     },
     "placebo/lib/libMoltenVK_Common.a": {
       "bytes": 7488,
-      "sha256": "f07e62c63e37187b396bb2ec124dff8d29a3fd1b0d2f38efe814c3e09d0d210d"
+      "sha256": "2ca239091013753ec91e7704445b3be8888096692f428ff731ae1f4862e630e7"
     },
     "placebo/lib/libMoltenVK_ShaderConverter.a": {
       "bytes": 110160,
-      "sha256": "2e4caae3085b0eb42a811f477b04dab570344f60638eec7662af61b05f1bb22f"
+      "sha256": "7588be396c9b41d7f879ac722b148d203b0dd8af209f6f82d26adec7d28e3d53"
     },
     "placebo/lib/libSPIRV.a": {
       "bytes": 608,
-      "sha256": "22a2b4ab377498f9fa1f832fb17ea4f4433e642e26a68c5baa19709f8de1ab0a"
+      "sha256": "585038201de67244cbbcce00445b3d76f2398be042013656975f0261bdda35dd"
     },
     "placebo/lib/libglslang-default-resource-limits.a": {
       "bytes": 43856,
-      "sha256": "1428082d0d41c104538d75bcf1234538503a35ae37be66f953793fb44a5426a8"
+      "sha256": "18b986a514a6b60197e9bb35bafde3da8ed120e8f3358f357672e24a9611d35a"
     },
     "placebo/lib/libglslang.a": {
       "bytes": 4385096,
-      "sha256": "2bde6461d3c3134ee242cc04ce1fc5d48cdd7d41f88182dc3ec1fcfb74cfbd9c"
+      "sha256": "eb1856bb83222ea650bc7a277914f8b7a13e0a85dab0ea5e8666a14d5dcc2abf"
     },
     "placebo/lib/libplacebo.a": {
       "bytes": 1504040,
@@ -522,50 +514,50 @@
     },
     "placebo/lib/libspirv-cross-core.a": {
       "bytes": 740896,
-      "sha256": "489781173f8c482e63a454d4ffbdceb0a7aaeff10141af6213ff3459463ad774"
+      "sha256": "76d35a7c3652cfa196a32879c3efb599aa2d2c4d7a3a3de389bcbf032b7d5a4d"
     },
     "placebo/lib/libspirv-cross-glsl.a": {
       "bytes": 1887792,
-      "sha256": "245c57c6f52e1cd4de201f182591ef0d6e5091bf4dcb19a66c1bd959fd96836d"
+      "sha256": "5eaef690519881c52b8d2b3ed4465e881129665222943376ea048ed65dedf822"
     },
     "placebo/lib/libspirv-cross-msl.a": {
       "bytes": 2595944,
-      "sha256": "8ca1f77240887151f005a3852ff24470c4e66ff0a92153b877e73d93d8b9c798"
+      "sha256": "8d7dde15b3ebe565cb4dbc9d72c28d007bc3746e9aa8980fdf5e61e3e48eabe5"
     },
     "placebo/lib/libspirv-cross-reflect.a": {
       "bytes": 114136,
-      "sha256": "c4a23fb4acc53208ebd83309a4d798ce25c4ab5a33b48a6cc0f49be5e40653cb"
+      "sha256": "105dfd52e9c5b041cc302939070a1c34ca178511b645f5d02efe55f31c9e609a"
     },
     "placebo/link.json": {
       "bytes": 862,
       "sha256": "e9465f0fc02c7fa5a9b487b4e418114b0f417af1c45b4b949b382f9236d9e156"
     },
     "placebo/manifest.json": {
-      "bytes": 17988,
-      "sha256": "5c583ebc4f228f4fed03834c2a2e9fd8ce96187212c8bb308da0400211569dad"
+      "bytes": 17989,
+      "sha256": "7159c8bf931e5573016a0c3c030b92af4ddbefb27dced1c47b006f18d4d5444d"
     },
     "placebo/source-lock.json": {
       "bytes": 1557,
       "sha256": "432eae859eee9727aff7686cc001048dd8c6c0abca93ab36ad632dcee99e284c"
     },
     "symbols/rename.map": {
-      "bytes": 284048,
-      "sha256": "d5dfc357f47139ac77ec44008f4aa5df8c3fd987ccc8ddc07499d784a921ddd7"
+      "bytes": 94842,
+      "sha256": "5bb4b3540e619a2b711b0dc0dcfefc90286d13692d2fffc5f1bb139da56faebf"
     }
   },
   "isolation": {
     "coff_bss_sections": 0,
     "prefix": "termous_video_",
-    "symbols": 2930,
+    "symbols": 1668,
     "tools": {
       "nm": [
         "llvm-nm, compatible with GNU nm",
-        "Homebrew LLVM version 23.1.0",
+        "Homebrew LLVM version 23.1.4",
         "  Optimized build."
       ],
       "objcopy": [
         "llvm-objcopy, compatible with GNU objcopy",
-        "Homebrew LLVM version 23.1.0",
+        "Homebrew LLVM version 23.1.4",
         "  Optimized build."
       ]
     },
@@ -573,10 +565,10 @@
   },
   "library_type": "static",
   "platform": "darwin/arm64",
-  "recipe_sha256": "56f195765af9af579f0b5a4cd09f73983eb140b91f16d001a39e9d0ee4d4f0b8",
-  "schema": 2,
+  "recipe_sha256": "2a48d78a2fe0c5d6dfcc9b9344fe0e68b7d9f0f26bc9517207b350d8492137f3",
+  "schema": 3,
   "scope": "video_dependencies",
-  "source_commit": "3da7c2d57ae3bed703578aaf175dd6d0335cdb90",
+  "source_commit": "c0428e8e9a31fb0b7da4e24f6642964286f8c685",
   "source_dirty": false,
   "sources": {
     "libyuv": {
@@ -584,16 +576,16 @@
       "url": "https://chromium.googlesource.com/libyuv/libyuv",
       "version": "main-2026-10-09"
     },
-    "openh264": {
-      "revision": "652bdb7719f30b52b08e506645a7322ff1b2cc6f",
-      "url": "https://github.com/cisco/openh264.git",
-      "version": "2.6.0"
-    },
-    "schema": 1
+    "schema": 2,
+    "x264": {
+      "revision": "0480cb05fa188d37ae87e8f4fd8f1aea3711f7ee",
+      "url": "https://code.videolan.org/videolan/x264.git",
+      "version": "165-0480cb0"
+    }
   },
   "toolchain": {
     "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
-    "cmake": "cmake version 4.4.3",
+    "cmake": "cmake version 4.4.4",
     "cxx": "Apple clang version 17.0.0 (clang-1700.0.13.5)"
   },
   "verification": {
@@ -607,6 +599,8 @@
       "/usr/lib/libc++.1.dylib",
       "/usr/lib/libresolv.9.dylib"
     ],
-    "whole_archive_link": true
+    "video_decode": false,
+    "whole_archive_link": true,
+    "x264_encode": true
   }
 }
