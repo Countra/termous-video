@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "3rd"))
 from lib.platforms import host_target, link_flags
 from lib.sdk_manifest import verify_manifest
-from lib.sdk_link import dynamic_dependencies
+from lib.sdk_link import CHECK_SOURCES, dynamic_dependencies
 from lib.symbols import ARCHIVES, HEADER
 
 
@@ -24,7 +24,7 @@ def main():
     sdk = (args.sdk_dir or ROOT / "sdk" / target).resolve()
     peer = args.rdp_sdk.resolve(strict=True)
     verify_manifest(sdk, target, current_recipe=False)
-    # RDP 自有 OpenH264 与 video 的 x264 独立验证，不统一依赖或替换 RDP 产物。
+    # RDP 自有依赖与 video 私有编解码库独立验证，不统一依赖或替换 RDP 产物。
     original = [peer / "lib" / name for name in ("libopenh264.a", "libyuv.a")]
     private = [sdk / "lib" / name for name in ARCHIVES.values()]
     for path in (*original, peer / "include/wels/codec_api.h", peer / "include/libyuv.h"):
@@ -52,6 +52,12 @@ def main():
         flags = ["-std=c++17", "-O2", *platform_flags, "-I", include]
         if label == "private":
             flags += ["-include", include / HEADER]
+            for name in CHECK_SOURCES:
+                if name == "smoke.cc":
+                    continue
+                output = work / ("private-" + name.replace(".cc", ".o"))
+                run([tools["CXX"], *flags, "-c", ROOT / "3rd/checks" / name, "-o", output])
+                objects.append(output)
         smoke = ROOT / ("scripts/checks/rdp-smoke.cc" if label == "original" else "3rd/checks/smoke.cc")
         for kind, source, function in (("smoke", smoke, "video_sdk_smoke"),
                                       ("binding", ROOT / "scripts/checks/coexist.cc", "video_check_binding")):

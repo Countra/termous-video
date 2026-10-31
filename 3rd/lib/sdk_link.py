@@ -1,4 +1,4 @@
-"""验证 GCC C 链接、全归档链接、真实 cgo 及合成画面编码。"""
+"""验证纯编码链接、跨库编解码、全归档和真实 cgo 调用。"""
 
 import re
 import shutil
@@ -7,7 +7,10 @@ from .layout import BUILD_ROOT, TOOLS_ROOT, managed
 from .platforms import link_flags
 from .process import capture, run
 from .sdk_manifest import sdk_fingerprint
-from .symbols import ARCHIVES, HEADER
+from .symbols import ARCHIVES, ENCODER_ARCHIVES, HEADER
+
+ENCODER_SOURCES = ("encoder.cc", "pattern.cc")
+CHECK_SOURCES = (*ENCODER_SOURCES, "decoder.cc", "smoke.cc")
 
 
 def dynamic_dependencies(binary, target, tools, env, *, allowed_extra=()):
@@ -45,23 +48,39 @@ def verify_link(sdk, target, tools, env):
     flags = link_flags(target)
     archives = [(sdk / "lib" / name).as_posix() for name in ARCHIVES.values()]
     compile_flags = ["-mmacosx-version-min=12.0"] if target.startswith("darwin/") else []
-    run([tools["cxx"], "-std=c++17", "-O2", *compile_flags, *includes, "-c",
-         TOOLS_ROOT / "checks/smoke.cc", "-o", check / "smoke.o"], "smoke-cpp", env)
+    objects = []
+    for source in CHECK_SOURCES:
+        obj = check / source.replace(".cc", ".o")
+        run([tools["cxx"], "-std=c++17", "-O2", *compile_flags, *includes, "-c",
+             TOOLS_ROOT / "checks" / source, "-o", obj], "smoke-" + source, env)
+        objects.append(obj)
     run([tools["cc"], *compile_flags, "-c", TOOLS_ROOT / "checks/caller.c", "-o", check / "caller.o"],
         "smoke-c", env)
     suffix = ".exe" if target.startswith("windows/") else ""
     dependencies = set()
+    # 不加入 OpenH264 归档，直接用链接和运行证明编码侧没有解码依赖。
+    encoder_entry = check / "encoder-only.o"
+    run([tools["cxx"], "-std=c++17", "-O2", *compile_flags, *includes, "-DVIDEO_SDK_ENCODER_ONLY",
+         "-c", TOOLS_ROOT / "checks/smoke.cc", "-o", encoder_entry], "encoder-only-cpp", env)
+    binary = check / ("sdk-encoder-only" + suffix)
+    run([tools["cc"], check / "caller.o", encoder_entry,
+         *(check / source.replace(".cc", ".o") for source in ENCODER_SOURCES),
+         *(sdk / "lib" / name for name in ENCODER_ARCHIVES.values()), *flags, "-o", binary],
+        "sdk-encoder-only-link", env)
+    dependencies.update(dynamic_dependencies(binary, target, tools, env))
+    run([binary], "sdk-encoder-only-run", env, timeout=30)
     whole = ([flag for archive in archives for flag in ("-Xlinker", "-force_load", "-Xlinker", archive)]
              if target.startswith("darwin/") else ["-Wl,--whole-archive", *archives, "-Wl,--no-whole-archive"])
     for label, libraries in (("sdk-c-link", archives), ("sdk-whole-link", whole)):
         binary = check / (label + suffix)
-        run([tools["cc"], check / "caller.o", check / "smoke.o", *libraries, *flags, "-o", binary], label, env)
+        run([tools["cc"], check / "caller.o", *objects, *libraries, *flags, "-o", binary], label, env)
         dependencies.update(dynamic_dependencies(binary, target, tools, env))
         run([binary], label + "-run", env, timeout=30)
     cgo = check / "cgo"
     cgo.mkdir(exist_ok=True)
     shutil.copyfile(TOOLS_ROOT / "checks/cgo_main.go.in", cgo / "main.go")
-    shutil.copyfile(TOOLS_ROOT / "checks/smoke.cc", cgo / "smoke.cc")
+    for name in (*CHECK_SOURCES, "codec_check.h"):
+        shutil.copyfile(TOOLS_ROOT / "checks" / name, cgo / name)
     (cgo / "go.mod").write_text("module termous/video/sdkcheck\n\ngo 1.24.0\n", encoding="utf-8")
     # Go 缓存尊重调用端统一设置；未设置时只在本仓库 build 内补齐默认值。
     go_env = env.copy()
@@ -83,5 +102,6 @@ def verify_link(sdk, target, tools, env):
     run([binary], "sdk-cgo-run", env, timeout=30)
     return {"c_link": True, "whole_archive_link": True, "cgo_link": True,
             "synthetic_smoke": True, "desktop_captured": False,
-            "x264_encode": True, "video_decode": False,
+            "x264_encode": True, "encoder_only_link": True, "video_decode": True,
+            "decoder": "openh264", "openh264_api": True,
             "system_dependencies": sorted(dependencies)}

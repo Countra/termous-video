@@ -12,6 +12,11 @@ from lib.platforms import host_target, link_flags, toolchain
 
 
 class SourceTests(unittest.TestCase):
+    def test_openh264_uses_the_previous_official_pinned_source(self):
+        self.assertEqual(sources.source_lock()["openh264"], {
+            "url": "https://github.com/cisco/openh264.git", "version": "2.6.0",
+            "revision": "652bdb7719f30b52b08e506645a7322ff1b2cc6f"})
+
     def test_source_checks_revision_remote_and_dirty_tree(self):
         item = sources.source_lock()["x264"]
         cases = (("wrong-url", item["revision"], ""),

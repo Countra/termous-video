@@ -53,10 +53,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers libvulkan1
-      - name: Test installed x264 SDK (Windows)
+      - name: Test installed codec SDK (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: python 3rd/sdk.py check --allow-unbuilt
-      - name: Test installed x264 SDK (Linux / macOS)
+      - name: Test installed codec SDK (Linux / macOS)
         if: runner.os != 'Windows'
         run: python 3rd/sdk.py check --allow-unbuilt

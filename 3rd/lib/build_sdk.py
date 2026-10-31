@@ -51,16 +51,19 @@ def build_sdk(target, jobs, env, accepted_review="", *, staging_only=False):
         licenses = staged / "licenses"
         licenses.mkdir()
         for dependency, filename, name in (("x264", "COPYING", "x264-COPYING"),
+                                           ("openh264", "LICENSE", "OpenH264-LICENSE"),
                                            ("libyuv", "LICENSE", "libyuv-LICENSE"),
                                            ("libyuv", "PATENTS", "libyuv-PATENTS")):
             shutil.copyfile(managed(f"sources/{dependency}/{filename}"), licenses / name)
         shutil.copyfile(TOOLS_ROOT / "build-lock.json", staged / "build-lock.json")
         (staged / "README.md").write_text(
             f"# Video dependency SDK: {target}\n\n"
-            "Separate private static archives: libtermous_video_x264.a and libtermous_video_yuv.a.\n\n"
+            "Separate private static archives: libtermous_video_x264.a, libtermous_video_yuv.a and libtermous_video_openh264.a.\n\n"
             "Include termous_video_symbols.h before third-party headers. Headers are in include/.\n\n"
             f"x264 {lock['x264']['version']} provides 8-bit 4:2:0 progressive encoding only; libyuv excludes JPEG. "
-            "Both libraries retain architecture-specific SIMD paths.\n\n"
+            f"OpenH264 {lock['openh264']['version']} includes encoding and decoding; SDK tests use its decoder to verify x264 output. "
+            "All three libraries retain architecture-specific SIMD paths. "
+            "Encoding with x264 and libyuv does not require linking OpenH264.\n\n"
             "The placebo/ component contains libplacebo and its static backend dependencies with original symbols. "
             "See placebo/link.json for link order and placebo/manifest.json for rendering results.\n\n"
             "See the repository 3rd/README.md for compiler and linker requirements. "
@@ -72,7 +75,7 @@ def build_sdk(target, jobs, env, accepted_review="", *, staging_only=False):
         verify_sources(env)
         if source_record() != record or recipe_hash() != recipe:
             raise ValueError("Source checkout or build recipe changed during the build")
-        data = {"schema": 3, "isolation": isolation, "scope": "video_dependencies", "platform": target,
+        data = {"schema": 4, "isolation": isolation, "scope": "video_dependencies", "platform": target,
                 "components": {"placebo": "placebo/manifest.json"},
                 "library_type": "static", "build_type": "Release", "sources": lock,
                 "recipe_sha256": recipe, "verification": verification, **record,

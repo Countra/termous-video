@@ -114,6 +114,8 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(create[create.index("--base") + 1], "release/sdk")
         body = Path(create[create.index("--body-file") + 1]).read_text(encoding="utf-8")
         self.assertIn(COMMIT, body)
+        self.assertIn("OpenH264 decodes these sequences", body)
+        self.assertIn("encoder-only link check excludes OpenH264", body)
         self.assertIn("\n\n", body)
         self.assertIn(URL, (self.root / "summary.md").read_text(encoding="utf-8"))
         self.assertIn(f"SDK pull request ready for review: {URL}", self.output.getvalue())

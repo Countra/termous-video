@@ -1,7 +1,10 @@
 #include <libyuv.h>
+#include <wels/codec_api.h>
 #include <cstdint>
 
-// 两个编码器使用不同 API；只比较同名 libyuv 入口，确保没有链接到另一份依赖。
-extern "C" uintptr_t video_check_binding() {
-    return reinterpret_cast<uintptr_t>(&libyuv::ARGBToI420);
+// 验证 video 的完整 OpenH264 和 libyuv 都没有解析到 RDP 的另一份依赖。
+extern "C" void video_check_binding(uintptr_t entries[3]) {
+    entries[0] = reinterpret_cast<uintptr_t>(&libyuv::ARGBToI420);
+    entries[1] = reinterpret_cast<uintptr_t>(&WelsCreateDecoder);
+    entries[2] = reinterpret_cast<uintptr_t>(&WelsCreateSVCEncoder);
 }

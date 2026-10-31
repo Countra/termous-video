@@ -10,7 +10,7 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放、屏幕�
 | Linux amd64 | GCC | `sdk/linux/amd64` |
 | macOS arm64 | Apple Clang，SDK 12+／Go 1.27 调用端 13+ | `sdk/darwin/arm64` |
 
-依赖构建层已切换为独立的 `libtermous_video_x264.a`、`libtermous_video_yuv.a`，通过 `termous_video_` 私有符号隔离；libplacebo 及其静态依赖保存在 `sdk/<系统>/<架构>/placebo/`，保持原始符号。不分发第三方 DLL、so、dylib、可执行程序或视频服务。RDP 继续自行维护协议需要的 OpenH264／libyuv。
+依赖构建层已切换为独立的 `libtermous_video_x264.a`、`libtermous_video_yuv.a`、`libtermous_video_openh264.a`，通过 `termous_video_` 私有符号隔离；libplacebo 及其静态依赖保存在 `sdk/<系统>/<架构>/placebo/`，保持原始符号。不分发第三方 DLL、so、dylib、可执行程序或视频服务。完整 OpenH264 包含编码和解码能力；本阶段使用其解码器验证 x264 输出，后续生产编码仍迁移至 x264。RDP 继续自行维护协议需要的 OpenH264／libyuv。
 
 当前仅完成 SDK 编译层迁移：已有 `sdk/` 文件等待 GitHub CI 成套替换，Go/C 编码适配尚未迁移，不能把新 SDK 验证通过理解为生产 Go API 已可用。本阶段 CI 不运行旧适配的原生测试。详见 [构建说明](3rd/README.md)。
 
@@ -35,15 +35,15 @@ python 3rd/sdk.py check --sdk-dir <本机新SDK目录>
 python scripts/check-coexist.py --sdk-dir <本机新SDK目录> --rdp-sdk ../termous-rdp/sdk/windows/amd64
 ```
 
-最后一条检查 RDP 自有 OpenH264 和 video 私有 x264 能否共同链接、运行，并检查 libyuv 未串用。Linux/macOS 请替换 SDK 路径。`scripts/check.py` 等公共 Go API 检查入口保留供后续适配迁移使用，当前不作为编译层验收。详细工具链、缓存和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建。
+最后一条检查 RDP 自有依赖与 video 私有 x264／OpenH264 能否共同链接、运行，并确认双方 OpenH264 编解码入口和 libyuv 未串用。Linux/macOS 请替换 SDK 路径。`scripts/check.py` 等公共 Go API 检查入口保留供后续适配迁移使用，当前不作为编译层验收。详细工具链、缓存和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建。
 
 ## CI
 
-仅推送到 `main` 分支时自动在三个平台执行工具测试、无 cgo 测试和已发布 x264 SDK 的完整性／原生检查。旧 SDK 尚未重建时明确报告未验证；新旧混用或新产物损坏必须失败。普通 CI 不构建 SDK，也暂不验证尚未迁移的生产原生 Go API。
+仅推送到 `main` 分支时自动在三个平台执行工具测试、无 cgo 测试和已发布 schema 4 SDK 的完整性／原生检查。旧 SDK 尚未重建时明确报告未验证；新旧混用或新产物损坏必须失败。普通 CI 不构建 SDK，也暂不验证尚未迁移的生产原生 Go API。
 
 SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
 
-手动启动后，三平台从同一源码提交构建，完成普通 C 链接、全归档链接、真实 cgo 链接及 x264 合成编码检查后，统一创建 `sdk/` SDK PR。新 SDK 的编码结构检查不声称已完成客户端解码验收。libplacebo 额外验证 FP16 HDR→SDR 离屏渲染；macOS runner 若无 GPU，清单明确记录渲染未验证，仍要求 C／cgo 链接和 API 运行通过。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
+手动启动后，三平台从同一源码提交构建，完成普通 C 链接、全归档链接、真实 cgo 链接及 x264 编码→OpenH264 解码检查后，统一创建 `sdk/` SDK PR。独立纯编码链接保证 x264 不依赖 OpenH264；跨库解码检查仍不替代客户端解码验收。libplacebo 额外验证 FP16 HDR→SDR 离屏渲染；macOS runner 若无 GPU，清单明确记录渲染未验证，仍要求 C／cgo 链接和 API 运行通过。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
 
 GitHub 仓库需允许 Actions 创建 Pull Request（Settings → Actions → General），发布 job 使用仓库自带 `GITHUB_TOKEN`。其他 job 只有读取权限。
 

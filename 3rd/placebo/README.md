@@ -52,7 +52,7 @@ python 3rd/placebo.py review --target windows/amd64
 python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sha256 e335368b11c4c48e9d9b45964336cf11679b0adf42814c4a5025afe93987423b
 ```
 
-独立入口把验证产物保存在 `build/install/placebo/<平台>/verified-*/placebo`，不改变已有 SDK。统一 `3rd/build.py build` 使用相同参数，将组件加入 `sdk/<平台>/placebo/`，与 x264／libyuv 归档一起验证并事务安装。Linux、macOS 分别使用 `linux/amd64`、`darwin/arm64`，只支持本机构建。
+独立入口把验证产物保存在 `build/install/placebo/<平台>/verified-*/placebo`，不改变已有 SDK。统一 `3rd/build.py build` 使用相同参数，将组件加入 `sdk/<平台>/placebo/`，与 x264／OpenH264／libyuv 归档一起验证并事务安装。Linux、macOS 分别使用 `linux/amd64`、`darwin/arm64`，只支持本机构建。
 
 源码、覆盖层、依赖安装前缀、构建输出、日志和测试程序全部留在本仓库 `build` 内。Go 缓存尊重已有 `GOCACHE`／`GOMODCACHE`／`GOTMPDIR`，本工作区继续使用 `TEMP/go`。不改 pnpm 缓存。
 
@@ -66,12 +66,12 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 组件包含 `lib/`、`include/`、`source-lock.json`、`link.json`、`manifest.json`。`link.json` 给出归档的相对路径、顺序、`PL_STATIC` 编译定义及系统链接参数，不携带构建机器的绝对路径。消费方不需要 Meson、LLVM、Jinja 或上游源码。
 
-组件的完整载荷摘要同时由其自身清单和外层 SDK 清单覆盖。外层只接受 schema 3 的 x264 SDK，必须包含本组件。现有旧二进制仅等待 CI 替换；普通 CI 明确报告未验证。新产物存在后，不允许因损坏或缺文件而跳过。
+组件的完整载荷摘要同时由其自身清单和外层 SDK 清单覆盖。外层只接受 schema 4 的编解码 SDK，必须包含本组件。现有旧二进制仅等待 CI 替换；普通 CI 明确报告未验证。新产物存在后，不允许因损坏或缺文件而跳过。
 
 构建验证包括：
 
 - C 调用、全归档链接和真实 cgo 编译、执行。
-- 统一 SDK 构建还会强制纳入全部 libplacebo 与私有 x264／libyuv 归档，检查共存链接和系统动态依赖。
+- 统一 SDK 构建还会强制纳入全部 libplacebo 与私有 x264／OpenH264／libyuv 归档，检查共存链接和系统动态依赖。
 - 合成 RGBA16F scRGB 灰阶（0～1000 nit）与 RGB 色块到 100 nit SDR 的 GPU 离屏渲染、读取及重复运行，检查黑位、亮度顺序、灰阶一致性、颜色通道和 alpha。
 - Windows 强制 WARP 保证无独显 runner 也能执行着色器；本地可另运行 `build/checks/placebo/windows/amd64/c.exe --hardware` 验证硬件。
 - Linux CI 安装系统 Mesa Vulkan 驱动并执行合成测试，不依赖桌面会话。
@@ -87,7 +87,7 @@ python 3rd/placebo.py build --target windows/amd64 --jobs 8 --accepted-review-sh
 
 沿用 **Build video SDK pull request** 手动触发工作流，三平台从同一提交构建后创建一个 SDK PR，不自动合并。批准摘要固定在工作流中；升级上游文件需要重新审查和批准，禁止自动把刚计算的摘要当作批准。
 
-普通 CI 仍仅在推送到 `main` 时运行，不构建 SDK；通过 `python 3rd/sdk.py check --allow-unbuilt` 统一验证已发布的 x264、libyuv 和 libplacebo。整套旧 SDK 尚未替换时明确报告未验证；新 SDK 中缺少或损坏的 libplacebo 组件不能跳过。单独验证组件使用 `python scripts/check-placebo.py --sdk-dir <本机新SDK目录>`。三平台合成渲染结果随手动 SDK 工作流单独上传；macOS 的设备缺失会明确保留为未验证状态。
+普通 CI 仍仅在推送到 `main` 时运行，不构建 SDK；通过 `python 3rd/sdk.py check --allow-unbuilt` 统一验证已发布的 x264、OpenH264、libyuv 和 libplacebo。整套旧 SDK 尚未替换时明确报告未验证；新 SDK 中缺少或损坏的 libplacebo 组件不能跳过。单独验证组件使用 `python scripts/check-placebo.py --sdk-dir <本机新SDK目录>`。三平台合成渲染结果随手动 SDK 工作流单独上传；macOS 的设备缺失会明确保留为未验证状态。
 
 ## 本地验证记录（2026-10-27）
 

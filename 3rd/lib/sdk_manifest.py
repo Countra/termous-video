@@ -81,7 +81,7 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     directory = Path(directory).absolute()
     payload = inventory(directory)
     data = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") != 3 or data.get("platform") != target
+    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") != 4 or data.get("platform") != target
             or data.get("scope") != "video_dependencies" or data.get("library_type") != "static"
             or data.get("build_type") != "Release"):
         raise ValueError("SDK target, scope or build format mismatch")
@@ -116,9 +116,9 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     required = {"include/libyuv.h", "include/libyuv/convert.h", "README.md", "build-lock.json",
                 "licenses/libyuv-LICENSE", "licenses/libyuv-PATENTS",
                 "include/x264.h", "include/x264_config.h", "licenses/x264-COPYING",
+                "include/wels/codec_api.h", "include/wels/codec_app_def.h", "include/wels/codec_def.h",
+                "include/wels/codec_ver.h", "licenses/OpenH264-LICENSE",
                 "include/" + HEADER, "symbols/rename.map"}
-    if any("openh264" in name.lower() or name.startswith("include/wels/") for name in payload):
-        raise ValueError("x264 SDK must not contain OpenH264 payloads")
     required.update("lib/" + name for name in libraries)
     components = data.get("components", {})
     if components != {"placebo": "placebo/manifest.json"}:
@@ -146,8 +146,10 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
         raise ValueError("SDK is missing required link and runtime verification")
     if checks.get("desktop_captured") is not False:
         raise ValueError("SDK verification must not capture the desktop")
-    if checks.get("x264_encode") is not True or checks.get("video_decode") is not False:
-        raise ValueError("x264 SDK must report encoding verification without claiming decoding")
+    if (any(checks.get(key) is not True for key in
+            ("x264_encode", "encoder_only_link", "video_decode", "openh264_api"))
+            or checks.get("decoder") != "openh264"):
+        raise ValueError("SDK is missing x264 encoding and OpenH264 decoding verification")
     if checks.get("placebo_coexistence") is not True:
         raise ValueError("SDK is missing libplacebo and codec coexistence verification")
     return data

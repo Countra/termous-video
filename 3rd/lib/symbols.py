@@ -9,8 +9,9 @@ from .coff_bss import normalize_archive
 from .process import capture, run
 
 PREFIX = "termous_video_"
-ARCHIVES = {"libx264.a": "libtermous_video_x264.a",
-            "libyuv.a": "libtermous_video_yuv.a"}
+ENCODER_ARCHIVES = {"libx264.a": "libtermous_video_x264.a",
+                    "libyuv.a": "libtermous_video_yuv.a"}
+ARCHIVES = {**ENCODER_ARCHIVES, "libopenh264.a": "libtermous_video_openh264.a"}
 HEADER = "termous_video_symbols.h"
 
 
@@ -76,7 +77,7 @@ def isolate(sdk, target, tools, env):
         unresolved = read_symbols(sdk / "lib" / private, tools, env, defined=False)
         if actual != {mapping[s] for s in definitions[original]} or unresolved & originals:
             raise ValueError(f"Incomplete symbol isolation: {private}")
-    # 两个归档全部验证后才移除暂存区原件，安装失败不会影响已有 SDK。
+    # 所有归档全部验证后才移除暂存区原件，安装失败不会影响已有 SDK。
     for original in ARCHIVES:
         (sdk / "lib" / original).unlink()
     return {"version": 1, "prefix": PREFIX, "symbols": len(mapping), "coff_bss_sections": bss_sections,

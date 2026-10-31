@@ -79,7 +79,7 @@ file(CONFIGURE OUTPUT "${X264_CONFIG_DIR}/config.h" CONTENT "${X264_CONFIG}" @ON
 file(READ "${CMAKE_CURRENT_LIST_DIR}/../build-lock.json" X264_LOCK)
 string(JSON X264_VERSION GET "${X264_LOCK}" x264 version)
 string(JSON X264_REVISION GET "${X264_LOCK}" x264 revision)
-file(STRINGS "${H264_ROOT}/x264.h" X264_BUILD_LINE REGEX "^#define X264_BUILD [0-9]+$")
+file(STRINGS "${X264_ROOT}/x264.h" X264_BUILD_LINE REGEX "^#define X264_BUILD [0-9]+$")
 if(NOT X264_BUILD_LINE STREQUAL "#define X264_BUILD 165")
   message(FATAL_ERROR "x264 ABI changed; review the recipe and smoke tests")
 endif()

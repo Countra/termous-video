@@ -43,7 +43,8 @@ class SymbolTests(unittest.TestCase):
             for name in symbols.ARCHIVES:
                 (sdk / "lib" / name).write_bytes(b"archive")
             definitions = {"libx264.a": {"x264_encoder_open_165", "_ZN6libyuv", ".refptr.x264_encoder_open_165"},
-                           "libyuv.a": {"ARGBToI420"}}
+                           "libyuv.a": {"ARGBToI420"},
+                           "libopenh264.a": {"WelsCreateDecoder", "WelsCreateSVCEncoder", "WelsGetCodecVersion"}}
 
             def read(path, tools, env, *, defined):
                 if not defined:
@@ -60,11 +61,13 @@ class SymbolTests(unittest.TestCase):
                     patch.object(symbols, "normalize_archive", return_value=0), \
                     patch.object(symbols, "run", side_effect=run), patch.object(symbols, "capture", return_value="LLVM 18"):
                 record = symbols.isolate(sdk, "windows/amd64", {"nm": "nm", "objcopy": "objcopy"}, {})
-            self.assertEqual(record["symbols"], 4)
+            self.assertEqual(record["symbols"], 7)
             mapping = (sdk / "symbols/rename.map").read_text()
             self.assertNotIn("malloc", mapping)
             header = (sdk / "include" / symbols.HEADER).read_text(encoding="utf-8")
             self.assertIn("#define ARGBToI420 termous_video_ARGBToI420", header)
+            self.assertIn("#define WelsCreateDecoder termous_video_WelsCreateDecoder", header)
+            self.assertIn("#define WelsCreateSVCEncoder termous_video_WelsCreateSVCEncoder", header)
             self.assertNotIn("#define _ZN", header)
             self.assertTrue(all((sdk / "lib" / n).is_file() for n in symbols.ARCHIVES.values()))
             self.assertTrue(all(not (sdk / "lib" / n).exists() for n in symbols.ARCHIVES))

@@ -9,6 +9,7 @@ from .layout import TOOLS_ROOT, managed
 from .process import capture, run
 
 URLS = {"x264": "https://code.videolan.org/videolan/x264.git",
+        "openh264": "https://github.com/cisco/openh264.git",
         "libyuv": "https://chromium.googlesource.com/libyuv/libyuv"}
 
 

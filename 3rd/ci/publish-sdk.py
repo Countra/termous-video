@@ -126,7 +126,7 @@ def publish(branch, commit):
         message = ROOT / "build/publish/sdk-commit-message.txt"
         message.parent.mkdir(parents=True, exist_ok=True)
         message.write_text(
-            "chore(sdk): prepare x264 dependency SDKs for three platforms\n\n"
+            "chore(sdk): prepare codec dependency SDKs for three platforms\n\n"
             "- Build Windows amd64, Linux amd64 and macOS arm64 from the same source commit\n"
             "- Keep dependency archives separate and verify C and cgo linking\n"
             f"- Record complete file digests and pinned dependency sources from {commit}\n", encoding="utf-8")
@@ -142,7 +142,7 @@ def publish(branch, commit):
     body = ROOT / "build/publish/sdk-pr-body.md"
     body.parent.mkdir(parents=True, exist_ok=True)
     body.write_text(
-        "Prepare the x264, libyuv and libplacebo static SDKs in `sdk/`. Production Go/C encoder integration is a separate follow-up; this PR contains dependency artifacts only.\n\n"
+        "Prepare the x264, OpenH264, libyuv and libplacebo static SDKs in `sdk/`. Production Go/C encoder integration is a separate follow-up; this PR contains dependency artifacts only.\n\n"
         f"All three SDKs come from source commit `{commit}` and include complete file digests and dependency licenses.\n\n"
         "- Windows amd64: MinGW-w64 GCC.\n"
         "- Linux amd64: GCC.\n"
@@ -150,10 +150,10 @@ def publish(branch, commit):
         "- Validation: native compilation, regular and whole-archive C linking, cgo linking and system dependency checks.\n\n"
         "Validation uses synthetic pixels only. libplacebo includes C/cgo linking and HDR-to-SDR rendering checks; "
         "macOS runners without a GPU report runtime validation as unavailable in the manifest. "
-        "x264 checks cover 1/8 threads, Annex B SPS/PPS/IDR, continuous low-delay output and rate reconfiguration; they do not claim decoder interoperability. No desktop is captured and no production encoder API is changed.\n",
+        "x264 checks cover 1/8 threads, Annex B SPS/PPS/IDR, continuous low-delay output and rate reconfiguration. OpenH264 decodes these sequences and validates timestamps and synthetic color blocks. An encoder-only link check excludes OpenH264. These tests do not claim browser or Android acceptance. No desktop is captured and no production encoder API is changed.\n",
         encoding="utf-8")
     url = gh("pr", "create", "--repo", repository, "--base", branch, "--head", head,
-             "--title", "chore(sdk): prepare x264 dependency SDKs for three platforms", "--body-file", str(body))
+             "--title", "chore(sdk): prepare codec dependency SDKs for three platforms", "--body-file", str(body))
     report_proposal(url)
 
 
