@@ -5,12 +5,12 @@
   },
   "files": {
     "README.md": {
-      "bytes": 661,
-      "sha256": "a0975b6f185d74160c0e1433cace03d624d97e11c7c1bb661853913c7ba90511"
+      "bytes": 856,
+      "sha256": "2bc8b070bde4f32c377be753b0dac21007592ba5a2d6817cafd2e6813e639c4b"
     },
     "build-lock.json": {
-      "bytes": 356,
-      "sha256": "e2fa79b1e3042a2f74ee6d5b5eaf8486b18b26cf276a842a1a01bbc6c73d6946"
+      "bytes": 512,
+      "sha256": "ec4d7fa396e6a9b9c4c700945030d8b05c108e2d2bd3c45afdcba9fa571e58aa"
     },
     "include/libyuv.h": {
       "bytes": 1042,
@@ -113,8 +113,24 @@
       "sha256": "58a7d2fe9c1ef224dc796175c4cf0df1a26885705e6b456765bdf895da077bb6"
     },
     "include/termous_video_symbols.h": {
-      "bytes": 172524,
-      "sha256": "a3547186679cbdd85a8cdd1e4995cf9c2d80e29e1f7ca8813e2194a01527a0ac"
+      "bytes": 194040,
+      "sha256": "6d55b8ebc75fc0f240fcac5d833954b9bb7327d1f0ba1379dc5020ac991ffb76"
+    },
+    "include/wels/codec_api.h": {
+      "bytes": 21178,
+      "sha256": "21f29b20c24f7c7946f2e243d0bc2532fb3542f6c28af338209477e70d9036c9"
+    },
+    "include/wels/codec_app_def.h": {
+      "bytes": 33380,
+      "sha256": "a40581a24263866dca19911928f7bc4eb354ff78d9dd56dbf0f55fc4fd923726"
+    },
+    "include/wels/codec_def.h": {
+      "bytes": 7630,
+      "sha256": "f974d269b5935e8dc7265b8bfc02f60e5185b4d6165d30541d2758a4506f1979"
+    },
+    "include/wels/codec_ver.h": {
+      "bytes": 420,
+      "sha256": "9a241e20b7c9221a5786cccd9eae3afed91afba3525b5b9b16c2101976516f94"
     },
     "include/x264.h": {
       "bytes": 49134,
@@ -124,6 +140,10 @@
       "bytes": 346,
       "sha256": "d2b4cecea633aa76a73530283c3d61b7942ff300e605d8374a5f5e09152212d1"
     },
+    "lib/libtermous_video_openh264.a": {
+      "bytes": 2392006,
+      "sha256": "4dcd5f430f53441c02cb3c2783b9f8fc1e12aa6e8269bc6001ebbf7db383b430"
+    },
     "lib/libtermous_video_x264.a": {
       "bytes": 1656734,
       "sha256": "b1d6a3eb003daff9f548cef7ffb0ce211bd4efc4e3e3e3a509e7e37e7bdfa0b2"
@@ -131,6 +151,10 @@
     "lib/libtermous_video_yuv.a": {
       "bytes": 1451138,
       "sha256": "8f7bad26fce9002e70232d79323211ad2cb8a984bf9d454848b01bcf410ef131"
+    },
+    "licenses/OpenH264-LICENSE": {
+      "bytes": 1295,
+      "sha256": "dd5c1c9668512530fa5a96e4c29ac4033d70a7eeb0eed7a42fddb6dd794ebdbb"
     },
     "licenses/libyuv-LICENSE": {
       "bytes": 1506,
@@ -513,14 +537,14 @@
       "sha256": "432eae859eee9727aff7686cc001048dd8c6c0abca93ab36ad632dcee99e284c"
     },
     "symbols/rename.map": {
-      "bytes": 153304,
-      "sha256": "adf9e2e276cdb555669b93f0e466c8f4a81155192f5b6eacb21e76bdcee0531b"
+      "bytes": 377402,
+      "sha256": "15839ce3988a5fabfc4cc3954487177000f6a8e779fbf651ba3912340190d74f"
     }
   },
   "isolation": {
     "coff_bss_sections": 0,
     "prefix": "termous_video_",
-    "symbols": 2547,
+    "symbols": 4403,
     "tools": {
       "nm": [
         "llvm-nm, compatible with GNU nm",
@@ -537,16 +561,21 @@
   },
   "library_type": "static",
   "platform": "linux/amd64",
-  "recipe_sha256": "2a48d78a2fe0c5d6dfcc9b9344fe0e68b7d9f0f26bc9517207b350d8492137f3",
-  "schema": 3,
+  "recipe_sha256": "4b9e826145e95d772ac1aed358918951516557160c7575a524732e0bc9812316",
+  "schema": 4,
   "scope": "video_dependencies",
-  "source_commit": "c0428e8e9a31fb0b7da4e24f6642964286f8c685",
+  "source_commit": "1d7d009f24469ba23a7b45765d77c101b1df070f",
   "source_dirty": false,
   "sources": {
     "libyuv": {
       "revision": "eeb06a6451ba2e21f8ff272c7b42fc62b9faecc5",
       "url": "https://chromium.googlesource.com/libyuv/libyuv",
       "version": "main-2026-10-09"
+    },
+    "openh264": {
+      "revision": "652bdb7719f30b52b08e506645a7322ff1b2cc6f",
+      "url": "https://github.com/cisco/openh264.git",
+      "version": "2.6.0"
     },
     "schema": 2,
     "x264": {
@@ -563,7 +592,10 @@
   "verification": {
     "c_link": true,
     "cgo_link": true,
+    "decoder": "openh264",
     "desktop_captured": false,
+    "encoder_only_link": true,
+    "openh264_api": true,
     "placebo_coexistence": true,
     "synthetic_smoke": true,
     "system_dependencies": [
@@ -572,7 +604,7 @@
       "libgcc_s.so.1",
       "libm.so.6"
     ],
-    "video_decode": false,
+    "video_decode": true,
     "whole_archive_link": true,
     "x264_encode": true
   }
