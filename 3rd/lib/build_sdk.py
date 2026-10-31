@@ -18,7 +18,7 @@ from .placebo.review import verify_review
 from .placebo.checks import verify_codec_link
 
 
-def build_sdk(target, jobs, env, accepted_review=""):
+def build_sdk(target, jobs, env, accepted_review="", *, staging_only=False):
     recipe = recipe_hash()
     lock = source_lock()
     verify_sources(env)
@@ -30,8 +30,8 @@ def build_sdk(target, jobs, env, accepted_review=""):
     if expected and (record["source_commit"] != expected or record["source_dirty"]):
         raise ValueError("Publication builds require the selected commit and a clean working tree")
     verify_review(target, env, accepted_review)
-    output = managed(f"out/{target}")
-    command = [tools["cmake"], "-S", str(TOOLS_ROOT), "-B", str(output), "-G", "Ninja",
+    output = managed(f"out/x264/{target}")
+    command = [tools["cmake"], "--fresh", "-S", str(TOOLS_ROOT), "-B", str(output), "-G", "Ninja",
                "-DCMAKE_BUILD_TYPE=Release", f"-DTERMOUS_TARGET={target}",
                f"-DCMAKE_C_COMPILER={tools['cc']}", f"-DCMAKE_CXX_COMPILER={tools['cxx']}",
                f"-DCMAKE_MAKE_PROGRAM={tools['ninja']}"]
@@ -50,16 +50,16 @@ def build_sdk(target, jobs, env, accepted_review=""):
         isolation = isolate(staged, target, isolation_tools, env)
         licenses = staged / "licenses"
         licenses.mkdir()
-        for dependency, filename, name in (("openh264", "LICENSE", "OpenH264-LICENSE"),
+        for dependency, filename, name in (("x264", "COPYING", "x264-COPYING"),
                                            ("libyuv", "LICENSE", "libyuv-LICENSE"),
                                            ("libyuv", "PATENTS", "libyuv-PATENTS")):
             shutil.copyfile(managed(f"sources/{dependency}/{filename}"), licenses / name)
         shutil.copyfile(TOOLS_ROOT / "build-lock.json", staged / "build-lock.json")
         (staged / "README.md").write_text(
             f"# Video dependency SDK: {target}\n\n"
-            "Separate private static archives: libtermous_video_openh264.a and libtermous_video_yuv.a.\n\n"
+            "Separate private static archives: libtermous_video_x264.a and libtermous_video_yuv.a.\n\n"
             "Include termous_video_symbols.h before third-party headers. Headers are in include/.\n\n"
-            f"OpenH264 {lock['openh264']['version']} includes encoding and decoding; libyuv excludes JPEG. "
+            f"x264 {lock['x264']['version']} provides 8-bit 4:2:0 progressive encoding only; libyuv excludes JPEG. "
             "Both libraries retain architecture-specific SIMD paths.\n\n"
             "The placebo/ component contains libplacebo and its static backend dependencies with original symbols. "
             "See placebo/link.json for link order and placebo/manifest.json for rendering results.\n\n"
@@ -72,7 +72,7 @@ def build_sdk(target, jobs, env, accepted_review=""):
         verify_sources(env)
         if source_record() != record or recipe_hash() != recipe:
             raise ValueError("Source checkout or build recipe changed during the build")
-        data = {"schema": 2, "isolation": isolation, "scope": "video_dependencies", "platform": target,
+        data = {"schema": 3, "isolation": isolation, "scope": "video_dependencies", "platform": target,
                 "components": {"placebo": "placebo/manifest.json"},
                 "library_type": "static", "build_type": "Release", "sources": lock,
                 "recipe_sha256": recipe, "verification": verification, **record,
@@ -80,5 +80,12 @@ def build_sdk(target, jobs, env, accepted_review=""):
                               for key in ("cc", "cxx", "cmake")}, "files": inventory(staged)}
         (staged / "manifest.json").write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         verify_manifest(staged, target, expected)
-        install_sdk(target, staged)
-    print(f"Verified SDK installed: sdk/{target}")
+        if staging_only:
+            # 本地验证保留完整产物但不改已跟踪的 SDK；每次独立目录避免覆盖既有证据。
+            destination = Path(tempfile.mkdtemp(prefix="verified-", dir=parent))
+            destination.rmdir()
+            staged.replace(destination)
+        else:
+            install_sdk(target, staged)
+            destination = Path("sdk") / target
+    print(f"Verified SDK available: {destination}")

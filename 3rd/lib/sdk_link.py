@@ -1,4 +1,4 @@
-"""验证 GCC C 链接、全归档链接、真实 cgo 及合成画面编解码。"""
+"""验证 GCC C 链接、全归档链接、真实 cgo 及合成画面编码。"""
 
 import re
 import shutil
@@ -6,6 +6,7 @@ import shutil
 from .layout import BUILD_ROOT, TOOLS_ROOT, managed
 from .platforms import link_flags
 from .process import capture, run
+from .sdk_manifest import sdk_fingerprint
 from .symbols import ARCHIVES, HEADER
 
 
@@ -72,7 +73,8 @@ def verify_link(sdk, target, tools, env):
             go_env[name] = str(directory)
     go_env.update(CGO_ENABLED="1", CC=tools["cc"], CXX=tools["cxx"], GOWORK="off",
                   GOTOOLCHAIN="local", GOFLAGS="", GOOS=target.split("/")[0], GOARCH=target.split("/")[1],
-                  CGO_CPPFLAGS=f'"-I{(sdk / "include").as_posix()}" -include "{(sdk / "include" / HEADER).as_posix()}"',
+                  CGO_CPPFLAGS=f'-DTERMOUS_VIDEO_SDK_{sdk_fingerprint(sdk)}=1 '
+                               f'"-I{(sdk / "include").as_posix()}" -include "{(sdk / "include" / HEADER).as_posix()}"',
                   CGO_CFLAGS=" ".join(compile_flags), CGO_CXXFLAGS="-std=c++17 " + " ".join(compile_flags),
                   CGO_LDFLAGS=" ".join([*(f'"{p}"' for p in archives), *flags]))
     binary = check / ("sdk-cgo-link" + suffix)
@@ -81,4 +83,5 @@ def verify_link(sdk, target, tools, env):
     run([binary], "sdk-cgo-run", env, timeout=30)
     return {"c_link": True, "whole_archive_link": True, "cgo_link": True,
             "synthetic_smoke": True, "desktop_captured": False,
+            "x264_encode": True, "video_decode": False,
             "system_dependencies": sorted(dependencies)}

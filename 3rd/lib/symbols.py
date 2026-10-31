@@ -9,7 +9,7 @@ from .coff_bss import normalize_archive
 from .process import capture, run
 
 PREFIX = "termous_video_"
-ARCHIVES = {"libopenh264.a": "libtermous_video_openh264.a",
+ARCHIVES = {"libx264.a": "libtermous_video_x264.a",
             "libyuv.a": "libtermous_video_yuv.a"}
 HEADER = "termous_video_symbols.h"
 

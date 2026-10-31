@@ -42,6 +42,11 @@ def inventory(directory):
             for p in checked_files(directory) if p != directory / "manifest.json"}
 
 
+def sdk_fingerprint(directory):
+    # cgo 不跟踪外部头文件和归档；同路径更新 SDK 时必须使编译缓存失效。
+    return hashlib.sha256(json.dumps(inventory(directory), sort_keys=True).encode()).hexdigest()
+
+
 def recipe_hash():
     digest = hashlib.sha256()
     # WindowsPath 默认按大小写不敏感排序，必须用统一的 POSIX 相对名生成跨平台摘要。
@@ -76,7 +81,7 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     directory = Path(directory).absolute()
     payload = inventory(directory)
     data = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") not in (1, 2) or data.get("platform") != target
+    if (not isinstance(data, dict) or target not in TARGETS or data.get("schema") != 3 or data.get("platform") != target
             or data.get("scope") != "video_dependencies" or data.get("library_type") != "static"
             or data.get("build_type") != "Release"):
         raise ValueError("SDK target, scope or build format mismatch")
@@ -102,35 +107,28 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
             not re.fullmatch(r"[0-9a-f]{40}", source_commit)
             or data.get("source_commit") != source_commit or data.get("source_dirty") is not False):
         raise ValueError("SDK was not built from the selected clean commit")
-    isolated = data["schema"] == 2
-    libraries = tuple(ARCHIVES.values()) if isolated else tuple(ARCHIVES)
-    if current_recipe and not isolated:
-        raise ValueError("SDK has no private symbols; run the manual SDK workflow")
-    if isolated:
-        isolation = data.get("isolation", {})
-        if (not isinstance(isolation, dict) or isolation.get("version") != 1
-                or isolation.get("prefix") != PREFIX or type(isolation.get("symbols")) is not int
-                or isolation["symbols"] < 1):
-            raise ValueError("SDK symbol isolation metadata is invalid")
-    required = {"include/wels/codec_api.h",
-                "include/wels/codec_app_def.h", "include/wels/codec_def.h", "include/wels/codec_ver.h",
-                "include/libyuv.h", "include/libyuv/convert.h", "README.md", "build-lock.json",
-                "licenses/OpenH264-LICENSE", "licenses/libyuv-LICENSE", "licenses/libyuv-PATENTS"}
+    libraries = tuple(ARCHIVES.values())
+    isolation = data.get("isolation", {})
+    if (not isinstance(isolation, dict) or isolation.get("version") != 1
+            or isolation.get("prefix") != PREFIX or type(isolation.get("symbols")) is not int
+            or isolation["symbols"] < 1):
+        raise ValueError("SDK symbol isolation metadata is invalid")
+    required = {"include/libyuv.h", "include/libyuv/convert.h", "README.md", "build-lock.json",
+                "licenses/libyuv-LICENSE", "licenses/libyuv-PATENTS",
+                "include/x264.h", "include/x264_config.h", "licenses/x264-COPYING",
+                "include/" + HEADER, "symbols/rename.map"}
+    if any("openh264" in name.lower() or name.startswith("include/wels/") for name in payload):
+        raise ValueError("x264 SDK must not contain OpenH264 payloads")
     required.update("lib/" + name for name in libraries)
-    if isolated:
-        required.update(("include/" + HEADER, "symbols/rename.map"))
     components = data.get("components", {})
-    if components not in ({}, {"placebo": "placebo/manifest.json"}):
-        raise ValueError("Unexpected SDK components")
-    if current_recipe and "placebo" not in components:
-        raise ValueError("SDK is missing the libplacebo component; run the manual SDK workflow")
-    if "placebo" in components:
-        from .placebo.manifest import verify_component
-        verify_component(directory / "placebo", target, current_recipe=current_recipe)
+    if components != {"placebo": "placebo/manifest.json"}:
+        raise ValueError("SDK requires exactly the libplacebo component")
+    from .placebo.manifest import verify_component
+    verify_component(directory / "placebo", target, current_recipe=current_recipe)
     if not required <= payload.keys():
         raise ValueError("SDK is missing required libraries, headers or licenses")
     for name in payload:
-        if "placebo" in components and name.startswith("placebo/"):
+        if name.startswith("placebo/"):
             continue
         if not (name.startswith(("include/", "lib/", "licenses/")) or name in ("README.md", "build-lock.json", "symbols/rename.map")):
             raise ValueError(f"Unexpected SDK file: {name}")
@@ -148,6 +146,8 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
         raise ValueError("SDK is missing required link and runtime verification")
     if checks.get("desktop_captured") is not False:
         raise ValueError("SDK verification must not capture the desktop")
-    if "placebo" in components and checks.get("placebo_coexistence") is not True:
+    if checks.get("x264_encode") is not True or checks.get("video_decode") is not False:
+        raise ValueError("x264 SDK must report encoding verification without claiming decoding")
+    if checks.get("placebo_coexistence") is not True:
         raise ValueError("SDK is missing libplacebo and codec coexistence verification")
     return data

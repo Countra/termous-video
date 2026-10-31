@@ -13,6 +13,10 @@ def install_sdk(target, staged):
     verify_manifest(staged, target)
     destination = PROJECT_ROOT / "sdk" / target
     backup = managed(f"sdk-backup/{target}")
+    sdk_root = PROJECT_ROOT / "sdk"
+    if sdk_root.exists() or sdk_root.is_symlink():
+        # 首次安装某个平台时也检查父目录，避免通过 SDK 根目录链接写到其他位置。
+        checked_files(sdk_root)
     for path, owner in ((staged, BUILD_ROOT), (backup, BUILD_ROOT), (destination, PROJECT_ROOT / "sdk")):
         if path.resolve() == owner.resolve() or not path.resolve().is_relative_to(owner.resolve()):
             raise ValueError(f"Installation path escapes its owner: {path}")
@@ -22,7 +26,8 @@ def install_sdk(target, staged):
     if previous:
         checked_files(destination)
         data = json.loads((destination / "manifest.json").read_text(encoding="utf-8"))
-        if data.get("platform") != target or data.get("scope") != "video_dependencies":
+        if (not isinstance(data, dict) or data.get("platform") != target
+                or data.get("scope") != "video_dependencies"):
             raise ValueError("Refusing to replace an unrelated SDK directory")
     destination.parent.mkdir(parents=True, exist_ok=True)
     backup.parent.mkdir(parents=True, exist_ok=True)

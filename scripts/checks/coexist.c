@@ -3,15 +3,13 @@
 
 int original_smoke(void);
 int private_smoke(void);
-uintptr_t original_binding(int entry);
-uintptr_t private_binding(int entry);
+uintptr_t original_binding(void);
+uintptr_t private_binding(void);
 
 int main(void) {
-    for (int entry = 0; entry < 2; ++entry) {
-        if (original_binding(entry) == private_binding(entry)) {
-            fputs("Private and original SDK resolved to the same implementation\n", stderr);
-            return 100;
-        }
+    if (original_binding() == private_binding()) {
+        fputs("Private and original SDK resolved to the same libyuv implementation\n", stderr);
+        return 100;
     }
     int result = original_smoke();
     if (!result) result = private_smoke();

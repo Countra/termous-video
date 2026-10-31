@@ -18,9 +18,7 @@ from lib.placebo.checks import EXTRA_SYSTEM_DLLS
 
 
 def go_environment(sdk, target):
-    data = verify_manifest(sdk, target, current_recipe=False)
-    if data["schema"] != 2:
-        raise ValueError("Private video SDK is required; run the manual SDK workflow first")
+    verify_manifest(sdk, target, current_recipe=False)
     verify_component(sdk / "placebo", target, current_recipe=False)
     env = os.environ.copy()
     digest = hashlib.sha256((sdk / "manifest.json").read_bytes()).hexdigest()

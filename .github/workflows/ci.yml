@@ -1,4 +1,4 @@
-name: Check video library
+name: Check video SDK tooling
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
       - name: Test source validation and SDK publication
         run: python -B -m unittest discover -s 3rd/tests -v
       - name: Verify installed SDK integrity
-        run: python 3rd/sdk.py audit
+        run: python 3rd/sdk.py audit --allow-unbuilt
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
         with:
           go-version-file: go.mod
@@ -48,22 +48,15 @@ jobs:
           path-type: inherit
           update: false
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-python
-      - name: Test native library and race boundaries (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: python scripts/check.py --link --race
       - name: Set up Linux Vulkan runtime for synthetic tests
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers libvulkan1
-      - name: Test native library and race boundaries (Unix)
-        if: runner.os != 'Windows'
-        run: python scripts/check.py --link --race
-      - name: Test installed libplacebo SDK (Windows)
+      - name: Test installed x264 SDK (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: python scripts/check-placebo.py --allow-missing
-      - name: Test installed libplacebo SDK (Linux / macOS)
+        run: python 3rd/sdk.py check --allow-unbuilt
+      - name: Test installed x264 SDK (Linux / macOS)
         if: runner.os != 'Windows'
-        run: python scripts/check-placebo.py --allow-missing
+        run: python 3rd/sdk.py check --allow-unbuilt

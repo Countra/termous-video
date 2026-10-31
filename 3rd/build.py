@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--target", choices=TARGETS, default=host_target())
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 2, 8))
     parser.add_argument("--accepted-review-sha256", default="")
+    parser.add_argument("--staging-only", action="store_true", help="Keep the verified SDK under build/install without replacing sdk")
     args = parser.parse_args()
     if not 1 <= args.jobs <= 128:
         raise ValueError("Jobs must be between 1 and 128")
@@ -31,7 +32,7 @@ def main():
         verify_sources(env)
         placebo_sources.verify_sources(args.target, env)
     else:
-        build_sdk(args.target, args.jobs, env, args.accepted_review_sha256)
+        build_sdk(args.target, args.jobs, env, args.accepted_review_sha256, staging_only=args.staging_only)
 
 
 if __name__ == "__main__":

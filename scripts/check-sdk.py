@@ -14,9 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description="Verify the installed private video SDK")
     parser.add_argument("--target", choices=TARGETS, required=True)
     args = parser.parse_args()
-    data = verify_manifest(ROOT / "sdk" / args.target, args.target, current_recipe=False)
-    if data["schema"] != 2:
-        raise ValueError("Private video SDK is required; run the manual SDK workflow first")
+    verify_manifest(ROOT / "sdk" / args.target, args.target, current_recipe=False)
     print(f"Private video SDK verified: {args.target}")
 
 

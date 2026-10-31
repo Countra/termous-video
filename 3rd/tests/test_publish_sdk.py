@@ -100,6 +100,10 @@ class PublicationTests(unittest.TestCase):
     def test_creates_pr_from_timestamp_branch_to_selected_base(self):
         publish.publish("release/sdk", COMMIT)
         self.assertEqual(self.verify.call_count, 3)
+        self.assertTrue(all(call.args[0].is_relative_to(self.root / "sdk")
+                            for call in self.verify.call_args_list))
+        self.assertIn(("git", "add", "--", "sdk/windows/amd64", "sdk/linux/amd64",
+                       "sdk/darwin/arm64"), self.calls)
         commits = [c for c in self.calls if c[0] == "git" and "commit" in c]
         self.assertEqual(len(commits), 1)
         self.assertIn("-F", commits[0])

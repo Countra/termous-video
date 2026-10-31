@@ -31,26 +31,28 @@ COMMIT = "1" * 40
 
 def fixture(directory, target):
     placebo_fixture(directory / "placebo", target)
+    lock = source_lock()
     files = {
-        "lib/libtermous_video_openh264.a": b"!<arch>\n", "lib/libtermous_video_yuv.a": b"!<arch>\n",
-        "include/wels/codec_api.h": b"api", "include/wels/codec_app_def.h": b"app",
-        "include/wels/codec_def.h": b"def", "include/wels/codec_ver.h": b"version",
+        "lib/libtermous_video_yuv.a": b"!<arch>\n",
         "include/termous_video_symbols.h": b"prefix", "symbols/rename.map": b"A termous_video_A\n",
         "include/libyuv.h": b"yuv", "include/libyuv/convert.h": b"convert",
-        "licenses/OpenH264-LICENSE": b"license", "licenses/libyuv-LICENSE": b"license",
+        "licenses/libyuv-LICENSE": b"license",
         "licenses/libyuv-PATENTS": b"patents", "README.md": b"sdk",
-        "build-lock.json": json.dumps(source_lock()).encode(),
+        "build-lock.json": json.dumps(lock).encode(),
     }
+    files.update({"lib/libtermous_video_x264.a": b"!<arch>\n", "include/x264.h": b"api",
+                  "include/x264_config.h": b"config", "licenses/x264-COPYING": b"license"})
     for name, data in files.items():
         path = directory / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-    data = {"schema": 2, "platform": target, "scope": "video_dependencies", "build_type": "Release",
+    data = {"schema": 3, "platform": target, "scope": "video_dependencies", "build_type": "Release",
             "components": {"placebo": "placebo/manifest.json"},
-            "library_type": "static", "sources": source_lock(), "source_commit": COMMIT,
+            "library_type": "static", "sources": lock, "source_commit": COMMIT,
             "source_dirty": False, "isolation": {"version": 1, "prefix": "termous_video_", "symbols": 1}, "recipe_sha256": sdk_manifest.recipe_hash(),
             "verification": {"c_link": True, "whole_archive_link": True, "cgo_link": True,
-                             "synthetic_smoke": True, "desktop_captured": False, "placebo_coexistence": True},
+                             "synthetic_smoke": True, "desktop_captured": False, "placebo_coexistence": True,
+                             "x264_encode": True, "video_decode": False},
             "files": sdk_manifest.inventory(directory)}
     (directory / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
 
@@ -109,6 +111,150 @@ class SDKTests(unittest.TestCase):
         with patch.object(Path, "replace", replace), self.assertRaisesRegex(OSError, "simulated"):
             sdk_install.install_sdk(target, staged)
         sdk_manifest.verify_manifest(old, target, COMMIT)
+
+    def test_install_replaces_old_artifacts_without_leaving_removed_libraries(self):
+        target = TARGETS[0]
+        installed = self.root / "sdk" / target
+        (installed / "lib").mkdir(parents=True)
+        (installed / "lib/libtermous_video_openh264.a").write_bytes(b"old archive")
+        (installed / "manifest.json").write_text(json.dumps({
+            "schema": 2, "scope": "video_dependencies", "platform": target}))
+        staged = self.build / "new"
+        fixture(staged, target)
+        sdk_install.install_sdk(target, staged)
+        self.assertFalse((installed / "lib/libtermous_video_openh264.a").exists())
+        sdk_manifest.verify_manifest(installed, target, COMMIT)
+
+    def test_install_rejects_invalid_old_metadata_without_moving_files(self):
+        target = TARGETS[0]
+        installed = self.root / "sdk" / target
+        installed.mkdir(parents=True)
+        marker = installed / "old-library.a"
+        marker.write_bytes(b"original SDK")
+        manifest = installed / "manifest.json"
+        staged = self.build / "new"
+        fixture(staged, target)
+        for metadata in ([], None, "invalid", {"platform": target}):
+            with self.subTest(metadata=metadata):
+                manifest.write_text(json.dumps(metadata), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "Refusing to replace"):
+                    sdk_install.install_sdk(target, staged)
+                self.assertEqual(marker.read_bytes(), b"original SDK")
+                self.assertEqual(json.loads(manifest.read_text()), metadata)
+                self.assertTrue(staged.is_dir())
+                self.assertFalse((self.build / "sdk-backup" / target).exists())
+
+    def test_failed_migration_restores_legacy_sdk_without_partial_new_files(self):
+        target = TARGETS[0]
+        installed = self.root / "sdk" / target
+        (installed / "lib").mkdir(parents=True)
+        (installed / "lib/libtermous_video_openh264.a").write_bytes(b"original archive")
+        (installed / "manifest.json").write_text(json.dumps({
+            "schema": 2, "scope": "video_dependencies", "platform": target}), encoding="utf-8")
+        original_files = {p.relative_to(installed): p.read_bytes()
+                          for p in sdk_manifest.checked_files(installed)}
+        staged = self.build / "new"
+        fixture(staged, target)
+        original_replace = Path.replace
+
+        def replace(path, destination):
+            if path == staged:
+                raise OSError("simulated migration failure")
+            return original_replace(path, destination)
+
+        with patch.object(Path, "replace", replace), self.assertRaisesRegex(OSError, "migration failure"):
+            sdk_install.install_sdk(target, staged)
+        self.assertEqual({p.relative_to(installed): p.read_bytes()
+                          for p in sdk_manifest.checked_files(installed)}, original_files)
+        self.assertTrue(staged.is_dir())
+        self.assertFalse((self.build / "sdk-backup" / target).exists())
+
+    def test_obsolete_manifest_schema_is_rejected(self):
+        staged = self.build / "obsolete"
+        fixture(staged, TARGETS[0])
+        path = staged / "manifest.json"
+        data = json.loads(path.read_text())
+        for version in (1, 2, 4):
+            with self.subTest(schema=version):
+                data["schema"] = version
+                path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(ValueError, "build format mismatch"):
+                    sdk_manifest.verify_manifest(staged, TARGETS[0], current_recipe=False)
+
+    def test_sdk_rejects_legacy_payload_and_false_decode_claim(self):
+        staged = self.build / "mixed"
+        fixture(staged, TARGETS[0])
+        extra = staged / "include/wels/codec_api.h"
+        extra.parent.mkdir()
+        extra.write_text("old header")
+        path = staged / "manifest.json"
+        data = json.loads(path.read_text())
+        data["files"] = sdk_manifest.inventory(staged)
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, "OpenH264"):
+            sdk_manifest.verify_manifest(staged, TARGETS[0])
+        extra.unlink()
+        data["files"] = sdk_manifest.inventory(staged)
+        data["verification"]["video_decode"] = True
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, "without claiming decoding"):
+            sdk_manifest.verify_manifest(staged, TARGETS[0])
+
+    def test_sdk_audit_rejects_incomplete_publication(self):
+        fixture(self.root / "sdk" / TARGETS[0], TARGETS[0])
+        with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaises(ValueError):
+            sdk_entry.audit_installed()
+
+    def test_missing_sdk_requires_explicit_allow_unbuilt(self):
+        with patch.object(sdk_entry, "PROJECT_ROOT", self.root):
+            with self.assertRaisesRegex(ValueError, "have not been published"):
+                sdk_entry.audit_installed()
+            self.assertFalse(sdk_entry.audit_installed(allow_unbuilt=True))
+            with patch.object(sdk_entry, "verify_manifest") as verify:
+                sdk_entry.check_sdk(allow_unbuilt=True)
+                verify.assert_not_called()
+
+    def test_allow_unbuilt_does_not_skip_an_explicit_missing_sdk(self):
+        with self.assertRaisesRegex(ValueError, "Directory does not exist"):
+            sdk_entry.check_sdk(self.build / "missing", allow_unbuilt=True)
+
+    def test_old_artifacts_are_reported_as_unbuilt_without_accepting_mixed_sets(self):
+        for target in TARGETS:
+            directory = self.root / "sdk" / target
+            directory.mkdir(parents=True)
+            (directory / "manifest.json").write_text(json.dumps({"schema": 2,
+                "scope": "video_dependencies", "platform": target, "sources": {"openh264": {}}}))
+        with patch.object(sdk_entry, "PROJECT_ROOT", self.root):
+            self.assertFalse(sdk_entry.audit_installed(allow_unbuilt=True))
+            fixture(self.root / "sdk" / TARGETS[0], TARGETS[0])
+            with self.assertRaises(ValueError):
+                sdk_entry.audit_installed(allow_unbuilt=True)
+
+    def test_installed_set_rejects_different_build_generations(self):
+        for target in TARGETS:
+            fixture(self.root / "sdk" / target, target)
+        manifest = self.root / "sdk" / TARGETS[-1] / "manifest.json"
+        data = json.loads(manifest.read_text())
+        data["source_commit"] = "2" * 40
+        manifest.write_text(json.dumps(data))
+        with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaisesRegex(ValueError, "same source"):
+            sdk_entry.audit_installed()
+
+    def test_allow_unbuilt_does_not_hide_corrupt_new_sdk(self):
+        for target in TARGETS:
+            fixture(self.root / "sdk" / target, target)
+        (self.root / "sdk" / TARGETS[0] / "include/x264.h").unlink()
+        with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaisesRegex(ValueError, "digest"):
+            sdk_entry.check_sdk(allow_unbuilt=True)
+
+    def test_encoder_cache_key_changes_when_archive_changes_in_place(self):
+        staged = self.build / "sdk"
+        fixture(staged, TARGETS[0])
+        before = sdk_manifest.sdk_fingerprint(staged)
+        self.assertEqual(before, sdk_manifest.sdk_fingerprint(staged))
+        archive = staged / "lib/libtermous_video_x264.a"
+        archive.write_bytes(archive.read_bytes() + b"new object")
+        self.assertNotEqual(before, sdk_manifest.sdk_fingerprint(staged))
 
     def test_rejects_tampering_and_missing_library(self):
         staged = self.build / "sdk"
@@ -186,24 +332,24 @@ class SDKTests(unittest.TestCase):
         with patch.object(sdk_entry, "PROJECT_ROOT", self.root), self.assertRaisesRegex(ValueError, "digest"):
             sdk_entry.audit_installed()
 
-    def test_allow_missing_only_skips_legacy_component(self):
+    def test_missing_component_is_never_accepted(self):
         target = TARGETS[0]
         installed = self.root / "sdk" / target
         fixture(installed, target)
         shutil.rmtree(installed / "placebo")
         with patch.object(placebo_entry, "ROOT", self.root), \
                 patch.object(placebo_entry, "host_target", return_value=target), \
-                patch.object(sys, "argv", ["check-placebo.py", "--allow-missing"]), \
+                patch.object(sys, "argv", ["check-placebo.py"]), \
                 patch.object(placebo_entry, "verify_link") as link:
             with self.assertRaises(ValueError):
                 placebo_entry.main()
-            # 只有原本不含组件的旧 SDK 才允许过渡期跳过；损坏的新 SDK 必须报错。
             path = installed / "manifest.json"
             data = json.loads(path.read_text())
             del data["components"]
             data["files"] = sdk_manifest.inventory(installed)
             path.write_text(json.dumps(data))
-            placebo_entry.main()
+            with self.assertRaisesRegex(ValueError, "requires exactly"):
+                placebo_entry.main()
             link.assert_not_called()
 
     def test_recipe_digest_tracks_objective_c_sources(self):

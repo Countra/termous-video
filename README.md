@@ -10,9 +10,9 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放、屏幕�
 | Linux amd64 | GCC | `sdk/linux/amd64` |
 | macOS arm64 | Apple Clang，SDK 12+／Go 1.27 调用端 13+ | `sdk/darwin/arm64` |
 
-每套新版 SDK 包含独立的 `libtermous_video_openh264.a`、`libtermous_video_yuv.a`、头文件、许可证、符号映射和校验清单。第三方符号使用 `termous_video_` 私有前缀，与 RDP／采集库各自的原生依赖隔离。RDP 继续自行构建协议需要的 OpenH264／libyuv，不与本库统一依赖版本。
+依赖构建层已切换为独立的 `libtermous_video_x264.a`、`libtermous_video_yuv.a`，通过 `termous_video_` 私有符号隔离；libplacebo 及其静态依赖保存在 `sdk/<系统>/<架构>/placebo/`，保持原始符号。不分发第三方 DLL、so、dylib、可执行程序或视频服务。RDP 继续自行维护协议需要的 OpenH264／libyuv。
 
-OpenH264／libyuv 仍分成两个私有静态归档。新增的 `sdk/<系统>/<架构>/placebo/` 独立保存 libplacebo 及其静态依赖，保留原始符号，不参与旧归档的符号改写。不分发第三方 DLL、so、dylib、可执行程序或视频服务。本库没有生产解码接口；解码仅用于测试编码结果。
+当前仅完成 SDK 编译层迁移：已有 `sdk/` 文件等待 GitHub CI 成套替换，Go/C 编码适配尚未迁移，不能把新 SDK 验证通过理解为生产 Go API 已可用。本阶段 CI 不运行旧适配的原生测试。详见 [构建说明](3rd/README.md)。
 
 独立 `color` API 使用已提交的 libplacebo 7.387.0 SDK，按需处理 RGBA16F scRGB。Windows 优先 D3D11 硬件，初始化失败后尝试系统 WARP；Linux 使用系统 Vulkan，macOS 使用静态 MoltenVK 调用系统 Metal。没有自研 CPU 转换或捆绑渲染器；后端不可用时返回明确错误。构建方法和依赖见 [libplacebo 构建说明](3rd/placebo/README.md)。
 
@@ -20,7 +20,7 @@ OpenH264／libyuv 仍分成两个私有静态归档。新增的 `sdk/<系统>/<�
 
 - `3rd/`：全平台 Python 入口、本仓库 CMake 配方、验证程序和测试。
 - `build/`：下载的 Git 仓库、编译输出、日志、临时 SDK 和合成画面验证程序，忽略版本控制。
-- `sdk/<系统>/<架构>/`：验证通过的安装产物，由 CI 通过 PR 更新。
+- `sdk/<系统>/<架构>/`：唯一 SDK 安装目录，由手动 CI 成套重建并通过 PR 更新。
 - `frame/`、`convert/`、`h264/`、`color/`：公共帧合同、转换、编码和色彩处理 API。
 - `internal/native/`：薄 C ABI、原生转换／编码及独立的平台链接文件。
 - `internal/colornative/`：独立的 libplacebo 设备、纹理渲染与平台链接；只导入 `h264` 不链接此模块或创建设备。
@@ -31,21 +31,19 @@ OpenH264／libyuv 仍分成两个私有静态归档。新增的 `sdk/<系统>/<�
 ```text
 python 3rd/check.py
 python -B -m unittest discover -s 3rd/tests -v
-python scripts/check.py --link --race
-python scripts/check-coexist.py --rdp-sdk ../termous-rdp/sdk/windows/amd64
+python 3rd/sdk.py check --sdk-dir <本机新SDK目录>
+python scripts/check-coexist.py --sdk-dir <本机新SDK目录> --rdp-sdk ../termous-rdp/sdk/windows/amd64
 ```
 
-`scripts/check.py` 先通过 Go 的构建预演检查三平台 cgo 参数，再执行本机原生测试；参数检查也可单独运行 `python scripts/check-cgo.py`。macOS 的 Go 调用层统一使用 13.0 部署目标，SDK 归档继续兼容 12.0。
-
-最后一条命令使用本机目标对应的 RDP SDK，验证两种链接顺序下入口相互独立且编解码正常；Linux/macOS 请替换 SDK 路径。RDP 的测试入口已自动执行该检查。详细工具链要求、缓存配置和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建，不在 Windows 上交叉编译其他平台。
+最后一条检查 RDP 自有 OpenH264 和 video 私有 x264 能否共同链接、运行，并检查 libyuv 未串用。Linux/macOS 请替换 SDK 路径。`scripts/check.py` 等公共 Go API 检查入口保留供后续适配迁移使用，当前不作为编译层验收。详细工具链、缓存和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建。
 
 ## CI
 
-仅推送到 `main` 分支时自动在三个平台执行工具测试、SDK 完整性检查、关闭 cgo 的测试以及真实原生 Go 测试、race 和链接检查；其他分支推送和 PR 事件不自动触发。普通 CI 不构建 SDK；首次切换私有符号需要先通过手动 SDK 工作流更新产物，旧 schema 1 SDK 无法链接新 Go 库。完整性审计仍可读取旧清单，但原生测试明确拒绝没有私有符号的 SDK。
+仅推送到 `main` 分支时自动在三个平台执行工具测试、无 cgo 测试和已发布 x264 SDK 的完整性／原生检查。旧 SDK 尚未重建时明确报告未验证；新旧混用或新产物损坏必须失败。普通 CI 不构建 SDK，也暂不验证尚未迁移的生产原生 Go API。
 
 SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
 
-手动启动后，三平台从同一源码提交构建，完成普通 C 链接、全归档链接、真实 cgo 链接及合成画面转换/缩放/编码/解码检查后，统一创建 SDK PR。libplacebo 额外验证 FP16 HDR→SDR 离屏渲染；macOS runner 若无 GPU，清单明确记录渲染未验证，仍要求 C／cgo 链接和 API 运行通过。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
+手动启动后，三平台从同一源码提交构建，完成普通 C 链接、全归档链接、真实 cgo 链接及 x264 合成编码检查后，统一创建 `sdk/` SDK PR。新 SDK 的编码结构检查不声称已完成客户端解码验收。libplacebo 额外验证 FP16 HDR→SDR 离屏渲染；macOS runner 若无 GPU，清单明确记录渲染未验证，仍要求 C／cgo 链接和 API 运行通过。发布过程不自动合并 PR、不覆盖目标分支，目标分支在构建期间推进时会停止发布。
 
 GitHub 仓库需允许 Actions 创建 Pull Request（Settings → Actions → General），发布 job 使用仓库自带 `GITHUB_TOKEN`。其他 job 只有读取权限。
 

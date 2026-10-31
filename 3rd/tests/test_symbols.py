@@ -29,9 +29,9 @@ class SymbolTests(unittest.TestCase):
                 self.assertEqual((sdk / "lib" / name).read_bytes(), b"original archive")
 
     def test_platform_decoration(self):
-        self.assertEqual(symbols.private_name("_WelsCreateDecoder", "darwin/arm64"), "_termous_video_WelsCreateDecoder")
-        self.assertEqual(symbols.private_name("__ZN4Wels", "darwin/arm64"), "_termous_video__ZN4Wels")
-        self.assertEqual(symbols.private_name("WelsCreateDecoder", "windows/amd64"), "termous_video_WelsCreateDecoder")
+        self.assertEqual(symbols.private_name("_x264_encoder_open_165", "darwin/arm64"), "_termous_video_x264_encoder_open_165")
+        self.assertEqual(symbols.private_name("__ZN6libyuv", "darwin/arm64"), "_termous_video__ZN6libyuv")
+        self.assertEqual(symbols.private_name("x264_encoder_open_165", "windows/amd64"), "termous_video_x264_encoder_open_165")
 
     def test_complete_map_and_external_runtime_reference(self):
         parent = BUILD_ROOT / "tests"
@@ -42,7 +42,7 @@ class SymbolTests(unittest.TestCase):
             (sdk / "include").mkdir()
             for name in symbols.ARCHIVES:
                 (sdk / "lib" / name).write_bytes(b"archive")
-            definitions = {"libopenh264.a": {"WelsCreateDecoder", "_ZN4Wels", ".refptr.WelsCreateDecoder"},
+            definitions = {"libx264.a": {"x264_encoder_open_165", "_ZN6libyuv", ".refptr.x264_encoder_open_165"},
                            "libyuv.a": {"ARGBToI420"}}
 
             def read(path, tools, env, *, defined):

@@ -1,6 +1,5 @@
 """只用合成像素验证真实 C/cgo 链接，单独记录设备不可用。"""
 
-import hashlib
 import json
 import shutil
 import subprocess
@@ -8,16 +7,11 @@ import subprocess
 from ..layout import TOOLS_ROOT, managed
 from ..process import run
 from ..sdk_link import dynamic_dependencies
-from ..sdk_manifest import inventory
+from ..sdk_manifest import sdk_fingerprint
 from .layout import archives, system_flags
 from ..symbols import ARCHIVES as CODEC_ARCHIVES
 
 EXTRA_SYSTEM_DLLS = {"version.dll", "shlwapi.dll", "ole32.dll", "gdi32.dll", "d3d11.dll", "dxgi.dll"}
-
-
-def sdk_fingerprint(sdk):
-    # cgo 不跟踪外部头文件和归档的内容；SDK 原地更新时必须主动改变缓存键。
-    return hashlib.sha256(json.dumps(inventory(sdk), sort_keys=True).encode()).hexdigest()
 
 
 def macos_crash_backtrace(binary, arguments, env, log):

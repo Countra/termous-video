@@ -23,9 +23,9 @@ def main():
     target = host_target()
     sdk = (args.sdk_dir or ROOT / "sdk" / target).resolve()
     peer = args.rdp_sdk.resolve(strict=True)
-    if verify_manifest(sdk, target, current_recipe=False)["schema"] != 2:
-        raise ValueError("Private video SDK is required")
-    original = [peer / "lib" / name for name in ARCHIVES]
+    verify_manifest(sdk, target, current_recipe=False)
+    # RDP 自有 OpenH264 与 video 的 x264 独立验证，不统一依赖或替换 RDP 产物。
+    original = [peer / "lib" / name for name in ("libopenh264.a", "libyuv.a")]
     private = [sdk / "lib" / name for name in ARCHIVES.values()]
     for path in (*original, peer / "include/wels/codec_api.h", peer / "include/libyuv.h"):
         if not path.is_file():
@@ -52,7 +52,8 @@ def main():
         flags = ["-std=c++17", "-O2", *platform_flags, "-I", include]
         if label == "private":
             flags += ["-include", include / HEADER]
-        for kind, source, function in (("smoke", ROOT / "3rd/checks/smoke.cc", "video_sdk_smoke"),
+        smoke = ROOT / ("scripts/checks/rdp-smoke.cc" if label == "original" else "3rd/checks/smoke.cc")
+        for kind, source, function in (("smoke", smoke, "video_sdk_smoke"),
                                       ("binding", ROOT / "scripts/checks/coexist.cc", "video_check_binding")):
             output = work / f"{label}-{kind}.o"
             run([tools["CXX"], *flags, f"-D{function}={label}_{kind}", "-c", source, "-o", output])

@@ -1,89 +1,132 @@
-#include <wels/codec_api.h>
-#include <libyuv.h>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <vector>
+#include <x264.h>
+#include <libyuv.h>
+
+namespace {
+struct Parameters {
+  x264_param_t value{};
+  ~Parameters() { x264_param_cleanup(&value); }
+};
+
+// 只核验编码输出的结构，不把 NAL 检查表述为跨端解码验收。
+bool check_nals(x264_nal_t* nals, int count, int bytes, bool keyframe) {
+  if (!nals || count <= 0 || bytes <= 0) return false;
+  int total = 0;
+  bool sps = false, pps = false, idr = false, slice = false;
+  for (int i = 0; i < count; ++i) {
+    const auto& nal = nals[i];
+    const int start = nal.b_long_startcode ? 4 : 3;
+    if (!nal.p_payload || nal.i_payload <= start || nal.i_payload > bytes - total) return false;
+    total += nal.i_payload;
+    for (int j = 0; j < start - 1; ++j) if (nal.p_payload[j] != 0) return false;
+    if (nal.p_payload[start - 1] != 1 || (nal.p_payload[start] & 31) != nal.i_type) return false;
+    if (nal.i_type == NAL_SPS) {
+      if (nal.i_payload < start + 4 || nal.p_payload[start + 1] != 66 ||
+          (nal.p_payload[start + 2] & 0xc0) != 0xc0 || nal.p_payload[start + 3] != 51) return false;
+      sps = true;
+    }
+    pps |= nal.i_type == NAL_PPS;
+    idr |= nal.i_type == NAL_SLICE_IDR;
+    slice |= nal.i_type == NAL_SLICE;
+  }
+  return total == bytes && (keyframe ? sps && pps && idr : slice && !idr);
+}
+
+int encode(int threads) {
+  constexpr int width = 512, height = 512;
+  Parameters params;
+  auto& p = params.value;
+  if (x264_param_default_preset(&p, "ultrafast", "zerolatency") < 0) return 1;
+  p.i_width = width;
+  p.i_height = height;
+  p.i_csp = X264_CSP_I420;
+  p.i_threads = threads;
+  p.b_sliced_threads = 1;
+  p.i_fps_num = 60;
+  p.i_fps_den = 1;
+  p.i_timebase_num = 1;
+  p.i_timebase_den = 60;
+  p.b_vfr_input = 0;
+  p.i_keyint_max = 120;
+  p.i_level_idc = 51;
+  p.b_repeat_headers = 1;
+  p.b_annexb = 1;
+  p.i_log_level = X264_LOG_ERROR;
+  p.rc.i_rc_method = X264_RC_ABR;
+  p.rc.i_bitrate = p.rc.i_vbv_max_bitrate = 100000;
+  p.rc.i_vbv_buffer_size = 100000;
+  if (x264_param_apply_profile(&p, "baseline") < 0) return 2;
+  std::unique_ptr<x264_t, decltype(&x264_encoder_close)> encoder(x264_encoder_open(&p), x264_encoder_close);
+  if (!encoder) return 3;
+  x264_param_t applied{};
+  x264_encoder_parameters(encoder.get(), &applied);
+  if (applied.i_threads != threads || applied.i_bframe || applied.rc.i_lookahead ||
+      applied.i_sync_lookahead || applied.i_level_idc != 51 ||
+      x264_encoder_maximum_delayed_frames(encoder.get()) != 0) return 4;
+
+  std::vector<uint8_t> bgra(width * height * 4), pixels(width * height * 3 / 2);
+  x264_picture_t input{}, output{};
+  x264_picture_init(&input);
+  input.img.i_csp = X264_CSP_I420;
+  input.img.i_plane = 3;
+  input.img.i_stride[0] = width;
+  input.img.i_stride[1] = input.img.i_stride[2] = width / 2;
+  input.img.plane[0] = pixels.data();
+  input.img.plane[1] = pixels.data() + width * height;
+  input.img.plane[2] = pixels.data() + width * height * 5 / 4;
+  for (int frame = 0; frame < 12; ++frame) {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        auto* pixel = &bgra[(y * width + x) * 4];
+        pixel[0] = static_cast<uint8_t>(x + frame * 17);
+        pixel[1] = static_cast<uint8_t>(y + frame * 11);
+        pixel[2] = static_cast<uint8_t>(x + y);
+        pixel[3] = 255;
+      }
+    }
+    if (libyuv::ARGBToI420(bgra.data(), width * 4, input.img.plane[0], width,
+        input.img.plane[1], width / 2, input.img.plane[2], width / 2, width, height)) return 5;
+    if (frame == 6) {
+      x264_encoder_parameters(encoder.get(), &applied);
+      applied.rc.i_bitrate = applied.rc.i_vbv_max_bitrate = 50000;
+      if (x264_encoder_reconfig(encoder.get(), &applied) < 0) return 6;
+    }
+    const bool keyframe = frame == 0 || frame == 9;
+    input.i_type = keyframe ? X264_TYPE_IDR : X264_TYPE_AUTO;
+    input.i_pts = frame;
+    x264_nal_t* nals = nullptr;
+    int count = 0;
+    const int bytes = x264_encoder_encode(encoder.get(), &nals, &count, &input, &output);
+    if (!check_nals(nals, count, bytes, keyframe) || output.i_pts != frame || output.i_dts != frame ||
+        bool(output.b_keyframe) != keyframe || x264_encoder_delayed_frames(encoder.get()) != 0) return 7;
+    if (frame == 6) {
+      x264_encoder_parameters(encoder.get(), &applied);
+      if (applied.rc.i_bitrate != 50000 || applied.i_level_idc != 51) return 8;
+    }
+  }
+  x264_nal_t* nals = nullptr;
+  int count = 0;
+  if (x264_encoder_encode(encoder.get(), &nals, &count, nullptr, &output) != 0 || count != 0) return 9;
+  return 0;
+}
+}
 
 extern "C" int video_sdk_smoke() {
   try {
-    constexpr int source_size = 128, size = 64;
-    std::vector<uint8_t> bgra(source_size * source_size * 4);
-    for (int y = 0; y < source_size; ++y) {
-      for (int x = 0; x < source_size; ++x) {
-        auto* p = &bgra[(y * source_size + x) * 4];
-        p[0] = x < 64 ? 200 : 40;
-        p[1] = y < 64 ? 180 : 20;
-        p[2] = 80;
-        p[3] = 255;
+    static_assert(X264_BIT_DEPTH == 8 && X264_CHROMA_FORMAT == X264_CSP_I420);
+    for (int threads : {1, 8}) {
+      const int error = encode(threads);
+      if (error) {
+        std::fprintf(stderr, "x264 smoke failed: threads=%d stage=%d\n", threads, error);
+        return error;
       }
     }
-    std::vector<uint8_t> source(source_size * source_size * 3 / 2);
-    auto* sy = source.data();
-    auto* su = sy + source_size * source_size;
-    auto* sv = su + source_size * source_size / 4;
-    if (libyuv::ARGBToI420(bgra.data(), source_size * 4, sy, source_size, su,
-                         source_size / 2, sv, source_size / 2, source_size, source_size)) return 1;
-    std::vector<uint8_t> pixels(size * size * 3 / 2);
-    auto* y = pixels.data();
-    auto* u = y + size * size;
-    auto* v = u + size * size / 4;
-    if (libyuv::I420Scale(sy, source_size, su, source_size / 2, sv, source_size / 2,
-                         source_size, source_size, y, size, u, size / 2, v, size / 2,
-                         size, size, libyuv::kFilterBilinear)) return 2;
-    ISVCEncoder* raw_encoder = nullptr;
-    if (WelsCreateSVCEncoder(&raw_encoder) || !raw_encoder) return 3;
-    auto free_encoder = [](ISVCEncoder* p) { p->Uninitialize(); WelsDestroySVCEncoder(p); };
-    std::unique_ptr<ISVCEncoder, decltype(free_encoder)> encoder(raw_encoder, free_encoder);
-    int quiet = WELS_LOG_QUIET;
-    if (encoder->SetOption(ENCODER_OPTION_TRACE_LEVEL, &quiet)) return 4;
-    SEncParamBase params{};
-    params.iUsageType = SCREEN_CONTENT_REAL_TIME;
-    params.iPicWidth = size;
-    params.iPicHeight = size;
-    params.iTargetBitrate = 300000;
-    params.iRCMode = RC_BITRATE_MODE;
-    params.fMaxFrameRate = 30;
-    if (encoder->Initialize(&params)) return 5;
-    SSourcePicture picture{};
-    picture.iColorFormat = videoFormatI420;
-    picture.iPicWidth = size;
-    picture.iPicHeight = size;
-    picture.iStride[0] = size;
-    picture.iStride[1] = picture.iStride[2] = size / 2;
-    picture.pData[0] = y;
-    picture.pData[1] = u;
-    picture.pData[2] = v;
-    SFrameBSInfo encoded{};
-    if (encoder->EncodeFrame(&picture, &encoded) || encoded.eFrameType != videoFrameTypeIDR) return 6;
-    std::vector<uint8_t> bitstream;
-    for (int layer = 0; layer < encoded.iLayerNum; ++layer) {
-      const auto& info = encoded.sLayerInfo[layer];
-      int length = 0;
-      for (int nal = 0; nal < info.iNalCount; ++nal) length += info.pNalLengthInByte[nal];
-      if (length <= 0) return 7;
-      bitstream.insert(bitstream.end(), info.pBsBuf, info.pBsBuf + length);
-    }
-    if (bitstream.empty()) return 8;
-    ISVCDecoder* raw_decoder = nullptr;
-    if (WelsCreateDecoder(&raw_decoder) || !raw_decoder) return 9;
-    auto free_decoder = [](ISVCDecoder* p) { p->Uninitialize(); WelsDestroyDecoder(p); };
-    std::unique_ptr<ISVCDecoder, decltype(free_decoder)> decoder(raw_decoder, free_decoder);
-    SDecodingParam decoding{};
-    decoding.sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_AVC;
-    if (decoder->Initialize(&decoding)) return 10;
-    unsigned char* planes[3]{};
-    SBufferInfo frame{};
-    if (decoder->DecodeFrameNoDelay(bitstream.data(), static_cast<int>(bitstream.size()), planes, &frame)
-        != dsErrorFree) return 11;
-    if (frame.iBufferStatus != 1 || frame.UsrData.sSystemBuffer.iWidth != size
-        || frame.UsrData.sSystemBuffer.iHeight != size || !planes[0]) return 12;
-    // 验证实际解码数据，避免只创建对象就把链接成功误报为功能通过。
-    const int stride = frame.UsrData.sSystemBuffer.iStride[0];
-    if (planes[0][8 * stride + 8] <= planes[0][48 * stride + 48]) return 13;
     return 0;
   } catch (...) {
-    std::fputs("Synthetic video check raised an exception\n", stderr);
+    std::fputs("Synthetic x264 check raised an exception\n", stderr);
     return 99;
   }
 }

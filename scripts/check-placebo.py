@@ -15,15 +15,11 @@ from lib.placebo.manifest import verify_component
 
 def main():
     parser = argparse.ArgumentParser(description="Test an installed static libplacebo SDK")
-    parser.add_argument("--allow-missing", action="store_true")
+    parser.add_argument("--sdk-dir", type=Path)
     args = parser.parse_args()
     target = host_target()
-    sdk = ROOT / "sdk" / target / "placebo"
-    if (sdk.parent / "manifest.json").exists():
-        verify_manifest(sdk.parent, target, current_recipe=False)
-    if not sdk.exists() and not sdk.is_symlink() and args.allow_missing:
-        print("libplacebo SDK is not published yet; rendering tests were not run.")
-        return
+    sdk = (args.sdk_dir or ROOT / "sdk" / target).absolute() / "placebo"
+    verify_manifest(sdk.parent, target, current_recipe=False)
     verify_component(sdk, target, current_recipe=False)
     env = environment()
     tools = toolchain(target, env, for_build=False)

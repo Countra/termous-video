@@ -8,7 +8,7 @@ import subprocess
 from .layout import TOOLS_ROOT, managed
 from .process import capture, run
 
-URLS = {"openh264": "https://github.com/cisco/openh264.git",
+URLS = {"x264": "https://code.videolan.org/videolan/x264.git",
         "libyuv": "https://chromium.googlesource.com/libyuv/libyuv"}
 
 
@@ -19,7 +19,7 @@ def source_lock():
 
 
 def validate_source_lock(data):
-    if not isinstance(data, dict) or data.get("schema") != 1 or set(data) != {"schema", *URLS}:
+    if not isinstance(data, dict) or data.get("schema") != 2 or set(data) != {"schema", *URLS}:
         raise ValueError("Invalid dependency lock schema")
     for name, url in URLS.items():
         item = data[name]
