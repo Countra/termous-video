@@ -1,10 +1,10 @@
 # Video dependency SDK: linux/amd64
 
-Separate private static archives: libtermous_video_openh264.a and libtermous_video_yuv.a.
+Separate private static archives: libtermous_video_x264.a and libtermous_video_yuv.a.
 
 Include termous_video_symbols.h before third-party headers. Headers are in include/.
 
-OpenH264 2.6.0 includes encoding and decoding; libyuv excludes JPEG. Both libraries retain architecture-specific SIMD paths.
+x264 165-0480cb0 provides 8-bit 4:2:0 progressive encoding only; libyuv excludes JPEG. Both libraries retain architecture-specific SIMD paths.
 
 The placebo/ component contains libplacebo and its static backend dependencies with original symbols. See placebo/link.json for link order and placebo/manifest.json for rendering results.
 

@@ -342,27 +342,27 @@
     },
     "lib/libMoltenVK.a": {
       "bytes": 3236616,
-      "sha256": "735f2b02865242d1ed32aecc8f25215f4cb51a0c1f7c00d602647a5665921e9a"
+      "sha256": "ce9aa55cb06a9bc78ed6c7f3329010fb05ed7b1296072890dba0d972d7f0447a"
     },
     "lib/libMoltenVK_Common.a": {
       "bytes": 7488,
-      "sha256": "f07e62c63e37187b396bb2ec124dff8d29a3fd1b0d2f38efe814c3e09d0d210d"
+      "sha256": "2ca239091013753ec91e7704445b3be8888096692f428ff731ae1f4862e630e7"
     },
     "lib/libMoltenVK_ShaderConverter.a": {
       "bytes": 110160,
-      "sha256": "2e4caae3085b0eb42a811f477b04dab570344f60638eec7662af61b05f1bb22f"
+      "sha256": "7588be396c9b41d7f879ac722b148d203b0dd8af209f6f82d26adec7d28e3d53"
     },
     "lib/libSPIRV.a": {
       "bytes": 608,
-      "sha256": "22a2b4ab377498f9fa1f832fb17ea4f4433e642e26a68c5baa19709f8de1ab0a"
+      "sha256": "585038201de67244cbbcce00445b3d76f2398be042013656975f0261bdda35dd"
     },
     "lib/libglslang-default-resource-limits.a": {
       "bytes": 43856,
-      "sha256": "1428082d0d41c104538d75bcf1234538503a35ae37be66f953793fb44a5426a8"
+      "sha256": "18b986a514a6b60197e9bb35bafde3da8ed120e8f3358f357672e24a9611d35a"
     },
     "lib/libglslang.a": {
       "bytes": 4385096,
-      "sha256": "2bde6461d3c3134ee242cc04ce1fc5d48cdd7d41f88182dc3ec1fcfb74cfbd9c"
+      "sha256": "eb1856bb83222ea650bc7a277914f8b7a13e0a85dab0ea5e8666a14d5dcc2abf"
     },
     "lib/libplacebo.a": {
       "bytes": 1504040,
@@ -370,19 +370,19 @@
     },
     "lib/libspirv-cross-core.a": {
       "bytes": 740896,
-      "sha256": "489781173f8c482e63a454d4ffbdceb0a7aaeff10141af6213ff3459463ad774"
+      "sha256": "76d35a7c3652cfa196a32879c3efb599aa2d2c4d7a3a3de389bcbf032b7d5a4d"
     },
     "lib/libspirv-cross-glsl.a": {
       "bytes": 1887792,
-      "sha256": "245c57c6f52e1cd4de201f182591ef0d6e5091bf4dcb19a66c1bd959fd96836d"
+      "sha256": "5eaef690519881c52b8d2b3ed4465e881129665222943376ea048ed65dedf822"
     },
     "lib/libspirv-cross-msl.a": {
       "bytes": 2595944,
-      "sha256": "8ca1f77240887151f005a3852ff24470c4e66ff0a92153b877e73d93d8b9c798"
+      "sha256": "8d7dde15b3ebe565cb4dbc9d72c28d007bc3746e9aa8980fdf5e61e3e48eabe5"
     },
     "lib/libspirv-cross-reflect.a": {
       "bytes": 114136,
-      "sha256": "c4a23fb4acc53208ebd83309a4d798ce25c4ab5a33b48a6cc0f49be5e40653cb"
+      "sha256": "105dfd52e9c5b041cc302939070a1c34ca178511b645f5d02efe55f31c9e609a"
     },
     "link.json": {
       "bytes": 862,
@@ -447,8 +447,8 @@
   },
   "symbol_renaming": false,
   "toolchain": {
-    "meson": "1.12.0",
-    "pkgconfig": "3.0.7"
+    "meson": "1.12.1",
+    "pkgconfig": "3.0.10"
   },
   "verification": {
     "api_smoke": true,
