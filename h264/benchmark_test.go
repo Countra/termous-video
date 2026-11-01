@@ -26,7 +26,7 @@ func BenchmarkDesktopEncoding(b *testing.B) {
 }
 
 func BenchmarkDesktopThreads(b *testing.B) {
-	for _, threads := range []int{1, 4, 8, 16} {
+	for _, threads := range []int{1, 4, 8, 12, 16} {
 		b.Run(fmt.Sprint(threads), func(b *testing.B) {
 			benchmarkDesktop(b, Config{Size: frame.Size{Width: 2560, Height: 1440}, Rate: RateControl{Bitrate: 100_000_000, FPS: 60}, Level: Level51, Matrix: Matrix709, Threads: threads})
 		})

@@ -16,7 +16,7 @@ import (
 func BenchmarkHDRPipeline(b *testing.B) {
 	for _, mode := range []struct{ w, h, fps int }{{1920, 1080, 30}, {2560, 1440, 60}} {
 		b.Run(fmt.Sprintf("%dx%d_%dfps", mode.w, mode.h, mode.fps), func(b *testing.B) {
-			p, err := color.New(color.Options{})
+			p, err := color.New(color.Options{MeasureStages: true})
 			if err != nil {
 				b.Skipf("色彩后端不可用：%v", err)
 			}
@@ -35,14 +35,14 @@ func BenchmarkHDRPipeline(b *testing.B) {
 				b.Fatal(err)
 			}
 			defer e.Close()
-			b.Logf("色彩后端=%s，编码器=%s，实际线程=%d", p.Backend(), e.Info().Implementation, e.Info().Threads)
+			b.Logf("色彩后端=%s，设备=%s，编码器=%s，实际线程=%d", p.Backend(), p.Device(), e.Info().Implementation, e.Info().Threads)
 			// 预热转换器、色彩 LUT 和编码器，统计只包含稳态同步成本。
 			for i := 0; i < 120; i++ {
 				testpattern.HDR(src, scratch, i)
 				if err = p.Process(src, dst); err != nil {
 					b.Fatal(err)
 				}
-				if _, err = e.EncodeBGRA(dst, h264.Options{TimestampMS: int64(i * 1000 / mode.fps)}); err != nil {
+				if _, err = e.EncodeBGRA(dst, h264.Options{MeasureStages: true, TimestampMS: int64(i * 1000 / mode.fps)}); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -51,7 +51,8 @@ func BenchmarkHDRPipeline(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			outputs := 0
-			var colorTime, encodeTime, totalTime time.Duration
+			var colorTime, encodeTime, totalTime, conversionTime, codecTime time.Duration
+			var stages color.Timings
 			for i := 0; i < b.N; i++ {
 				testpattern.HDR(src, scratch, i+120)
 				start := time.Now()
@@ -59,12 +60,20 @@ func BenchmarkHDRPipeline(b *testing.B) {
 					b.Fatal(err)
 				}
 				encodedAt := time.Now()
+				stage := p.Timings()
+				stages.Validate += stage.Validate
+				stages.Upload += stage.Upload
+				stages.Dispatch += stage.Dispatch
+				stages.DownloadWait += stage.DownloadWait
+				stages.DispatchGPU += stage.DispatchGPU
 				colorTime += encodedAt.Sub(start)
 				colorSamples[i] = float64(encodedAt.Sub(start).Nanoseconds())
-				out, err := e.EncodeBGRA(dst, h264.Options{TimestampMS: int64((i + 120) * 1000 / mode.fps)})
+				out, err := e.EncodeBGRA(dst, h264.Options{MeasureStages: true, TimestampMS: int64((i + 120) * 1000 / mode.fps)})
 				if err != nil {
 					b.Fatal(err)
 				}
+				conversionTime += out.ConversionTime
+				codecTime += out.EncodingTime
 				if !out.Skipped {
 					outputs++
 				}
@@ -78,6 +87,9 @@ func BenchmarkHDRPipeline(b *testing.B) {
 			b.StopTimer()
 			// 生成素材参与轮次时长，报告的处理吞吐与耗时不包含造图成本。
 			b.ReportMetric(float64(totalTime.Nanoseconds())/float64(b.N), "ns/op")
+			for name, duration := range map[string]time.Duration{"validate-ms": stages.Validate, "upload-ms": stages.Upload, "dispatch-ms": stages.Dispatch, "download-wait-ms": stages.DownloadWait, "gpu-dispatch-ms": stages.DispatchGPU, "bgra-i420-ms": conversionTime, "x264-ms": codecTime} {
+				b.ReportMetric(float64(duration)/float64(b.N)/1e6, name)
+			}
 			b.ReportMetric(float64(outputs)/totalTime.Seconds(), "output/s")
 			slices.Sort(samples)
 			slices.Sort(colorSamples)

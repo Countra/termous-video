@@ -38,6 +38,9 @@ func TestEncodingAndOwnership(t *testing.T) {
 	if err != nil || !first.Keyframe || first.Skipped || len(first.Data) == 0 {
 		t.Fatalf("keyframe: %+v %v", first, err)
 	}
+	if first.QPPlusOne < 1 || first.QPPlusOne > 70 {
+		t.Fatalf("编码器未报告有效全局 QP: %d", first.QPPlusOne)
+	}
 	nals := map[byte]bool{}
 	for i := 0; i+3 < len(first.Data); i++ {
 		if bytes.Equal(first.Data[i:i+3], []byte{0, 0, 1}) {

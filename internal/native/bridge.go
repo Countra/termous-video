@@ -10,6 +10,7 @@ import "C"
 import (
 	"runtime"
 	"termous/video/frame"
+	"time"
 	"unsafe"
 )
 
@@ -73,10 +74,10 @@ func output(out C.tv_output, code C.int) (Output, error) {
 	if out.length < 0 || out.length > 4*1024*1024 || (out.length > 0 && out.data == nil) {
 		return Output{}, ErrNative
 	}
-	return Output{Data: C.GoBytes(unsafe.Pointer(out.data), out.length), Keyframe: out.keyframe != 0, Skipped: out.skipped != 0}, nil
+	return Output{QPPlusOne: uint8(out.qp_plus_one), ConversionTime: time.Duration(out.conversion_ns), EncodingTime: time.Duration(out.encoding_ns), Data: C.GoBytes(unsafe.Pointer(out.data), out.length), Keyframe: out.keyframe != 0, Skipped: out.skipped != 0}, nil
 }
 func options(o Options) C.tv_options {
-	r := C.tv_options{keyframe: force(o.Keyframe), timestamp: C.int64_t(o.TimestampMS)}
+	r := C.tv_options{measure_stages: force(o.MeasureStages), keyframe: force(o.Keyframe), timestamp: C.int64_t(o.TimestampMS)}
 	if o.Rate != nil {
 		r.rate_present = 1
 		r.bitrate, r.fps = C.int(o.Rate.Bitrate), C.int(o.Rate.FPS)

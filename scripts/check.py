@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
@@ -23,6 +24,10 @@ def go_environment(sdk, target):
     env = os.environ.copy()
     digest = hashlib.sha256((sdk / "manifest.json").read_bytes()).hexdigest()
     env.update(CGO_ENABLED="1", GOTOOLCHAIN="local")
+    # 不能用空字符串覆盖 Go 默认的 -O2 -g；同时尊重持久化工具链配置。
+    env.update(json.loads(subprocess.check_output(
+        ["go", "env", "-json", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"],
+        cwd=ROOT, env=env, text=True, timeout=30)))
     if target.startswith("darwin/"):
         # 同时约束 runtime/cgo 的编译，避免继承 runner 系统版本而高于最终链接目标。
         env["MACOSX_DEPLOYMENT_TARGET"] = "13.0"

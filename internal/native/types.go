@@ -3,6 +3,7 @@ package native
 import (
 	"errors"
 	"termous/video/internal/limits"
+	"time"
 )
 
 var (
@@ -17,17 +18,20 @@ var (
 type Config struct{ Width, Height, Bitrate, FPS, Level, Matrix, Threads int }
 type RateControl struct{ Bitrate, FPS int }
 type Options struct {
-	Keyframe    bool
-	TimestampMS int64
-	Rate        *RateControl
+	MeasureStages bool
+	Keyframe      bool
+	TimestampMS   int64
+	Rate          *RateControl
 }
 type Info struct {
 	Implementation, Version, Preset string
 	Threads                         int
 }
 type Output struct {
-	Data              []byte
-	Keyframe, Skipped bool
+	QPPlusOne                    uint8
+	ConversionTime, EncodingTime time.Duration
+	Data                         []byte
+	Keyframe, Skipped            bool
 }
 
 func (c Config) Validate() error {

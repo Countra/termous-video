@@ -14,10 +14,10 @@ static void record_dispatch(void *priv, const struct pl_dispatch_info *info) {
 // 仅合成测试编译此入口，不给生产处理器增加计数器或故障注入开关。
 int tv_color_test_dispatch(void) {
   // 穷举每个槽的全部 binary16 位型，确认批量检查不会遗漏 NaN/Inf 或拒绝有限值。
-  for (int channel = 0; channel < 4; channel++)
+  for (int channel = 0; channel < 12; channel++)
     for (uint32_t value = 0; value <= UINT16_MAX; value++) {
-      uint64_t bits = (uint64_t)value << (channel * 16);
-      if (tv_color_pixels_valid((uint8_t *)&bits, 1, 1, 8) !=
+      uint16_t bits[12] = {0}; bits[channel] = value;
+      if (tv_color_pixels_valid((uint8_t *)bits, 3, 1, 24) !=
           ((value & 0x7c00) != 0x7c00))
         return 4;
     }
@@ -32,7 +32,7 @@ int tv_color_test_dispatch(void) {
   int result = 0;
   for (int i = 0; i < 6; i++) {
     if (tv_color_process(s, (uint8_t *)input, sizeof(input), 2, 1, 16,
-                         whites[i], output, sizeof(output), 8) ||
+                         whites[i], output, sizeof(output), 8, NULL) ||
         check.count != i + 1 || check.changed) {
       result = 2;
       break;
@@ -40,7 +40,7 @@ int tv_color_test_dispatch(void) {
   }
   input[0] = 0x7c00;
   if (!result && (tv_color_process(s, (uint8_t *)input, sizeof(input), 2, 1, 16,
-                                   80, output, sizeof(output), 8) != 2 ||
+                                   80, output, sizeof(output), 8, NULL) != 2 ||
                   check.count != 6))
     result = 3;
   pl_dispatch_callback(s->dispatch, NULL, NULL);

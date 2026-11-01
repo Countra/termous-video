@@ -6,6 +6,7 @@ import (
 	"termous/video/frame"
 	"termous/video/internal/limits"
 	"termous/video/internal/native"
+	"time"
 )
 
 var (
@@ -48,12 +49,17 @@ type Config struct {
 	Threads int
 }
 type Options struct {
-	Keyframe    bool
-	TimestampMS int64
+	// MeasureStages 仅在显式诊断时记录转换和编码耗时。
+	MeasureStages bool
+	Keyframe      bool
+	TimestampMS   int64
 	// Rate 与本帧编码一起提交，仅允许同 FPS 的码率更新。
 	Rate *RateControl
 }
 type Result struct {
+	// QPPlusOne 为本帧全局率控 QP 加一（1～70）；零表示未知，不代表码流切片 QP 或画质评分。
+	QPPlusOne                    uint8
+	ConversionTime, EncodingTime time.Duration
 	// Data 为独立的 Annex-B 数据；Skipped 为真时没有输出帧。
 	Data              []byte
 	Keyframe, Skipped bool
@@ -118,7 +124,7 @@ func New(config Config) (*Encoder, error) {
 }
 
 func (e *Encoder) options(o Options) (native.Options, error) {
-	result := native.Options{Keyframe: o.Keyframe, TimestampMS: o.TimestampMS}
+	result := native.Options{MeasureStages: o.MeasureStages, Keyframe: o.Keyframe, TimestampMS: o.TimestampMS}
 	if o.Rate == nil {
 		return result, nil
 	}
@@ -178,7 +184,7 @@ func (e *Encoder) EncodeI420(src frame.I420, options Options) (Result, error) {
 }
 
 func (e *Encoder) result(out native.Output, options Options) Result {
-	return Result{Data: out.Data, Keyframe: out.Keyframe, Skipped: out.Skipped, Size: e.config.Size, TimestampMS: options.TimestampMS}
+	return Result{QPPlusOne: out.QPPlusOne, ConversionTime: out.ConversionTime, EncodingTime: out.EncodingTime, Data: out.Data, Keyframe: out.Keyframe, Skipped: out.Skipped, Size: e.config.Size, TimestampMS: options.TimestampMS}
 }
 
 func (e *Encoder) Close() {

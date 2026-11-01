@@ -87,7 +87,7 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 固定桌面策略依次执行 `80 / SDRWhiteNits` 白电平归一化、真实 BT.709→BT.2020 线性矩阵变换、libplacebo Mobius 高光压缩及 relative colorimetric 色域映射。输出按 100 nit 计算，GPU 工作值换算为 libplacebo 的 203 nit 单位；拐点为 0.9，固定映射范围为桌面白色的 10 倍，`film_strength=0`。这不是物理显示峰值。动态峰值、自动曝光、局部增强、色域扩张、逆向 HDR 和抖动均关闭。普通白色参考输出约为 249，给高光保留空间。
 
-采用显式采样／自定义参数 Shader／`pl_shader_color_map_ex`／dispatch 单路径，不使用 renderer Hook。合法负 scRGB 分量保留到实际色域转换；未知或不支持必要 LUT 格式的设备明确返回不可用。设备、映射状态、着色器及两个图像纹理复用，白电平只更新动态 uniform；稳态每帧一次图像上传、一次转换派发和一次下载。尺寸或像素越界、NaN／Inf 整帧拒绝。每个处理器串行执行，设备丢失最多重建一次，关闭等待在途调用并可重复调用。转换失败时不得消费目标缓冲。`QueryCapabilities().Compiled` 只说明编译支持，运行后端是否可用由 `New` 判断。
+采用显式采样／自定义参数 Shader／`pl_shader_color_map_ex`／dispatch 单路径，不使用 renderer Hook。合法负 scRGB 分量保留到实际色域转换；未知或不支持必要 LUT 格式的设备明确返回不可用。设备、映射状态、着色器、输入纹理及所选读回模式的输出纹理复用，白电平只更新动态 uniform；稳态每帧一次图像上传、一次转换派发和一次下载。尺寸或像素越界、NaN／Inf 整帧拒绝。每个处理器串行执行，设备丢失最多重建一次，关闭等待在途调用并可重复调用。转换失败时不得消费目标缓冲。`QueryCapabilities().Compiled` 只说明编译支持，运行后端是否可用由 `New` 判断。
 
 输入步长须按 8 字节像素对齐，输出步长须按 4 字节像素对齐；允许行间填充，最后一行可省略尾部填充。不满足布局要求时在 GPU 传输前返回 `frame.ErrInvalid`，不影响之后的有效帧处理。
 
@@ -95,4 +95,22 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 `Options.Software` 仅用于 Windows 系统 WARP 验证；Unix 自动模式可以选择系统已有软件 Vulkan。三平台使用相同接口，实际原生运行以对应平台 CI 为准。Windows 合成转换与编码通过不代表真实 HDR 桌面已验收，当前结果见 [1440p／HDR 验证记录](../backend/docs/desktop-video-hdr.md)。
 
+`color.Options.MeasureStages` 和 `h264.Options.MeasureStages` 默认关闭。显式诊断可读取有限值检查、上传、派发提交、同步下载、BGRA→I420/缩放及编码耗时；`DispatchGPU` 只归属于本次任务；未完成的查询不会冒充当前帧结果。异步结果的 `GPUValid` 表示上传、派发、读回复制三个区间均有效，零值或缺失样本不得解释为零耗时。同步下载含 GPU 完成等待与驱动传输，不等同于 CPU 运算，也不能全部解释为 Shader 时间。诊断缓冲和 GPU timer 随 Processor 复用，默认路径没有逐帧诊断分配。
+
+`Processor.Device()` 返回已选中的实际设备名称。Windows 色彩转换在创建时按 DXGI 高性能硬件顺序尝试，再回落到默认硬件和 WARP；会话中不自动切换。有限值检查采用 SSE2/NEON 分组扫描与标量尾部，仍拒绝任意通道的 NaN/Inf。HDR 白电平、固定高光和色域算法不变。
+
+`BenchmarkDesktopCadence` 补充 4/8/12/16 线程、单/双会话、固定 60fps 的合成负载；每个编码器仅由一个执行者调用，报告每会话吞吐、期限错过比例及编码 P95。素材生成与调度计入节奏和进程 CPU，编码 P95 单独计时；工作集/CPU 需由进程工具采样，不能把 Go 分配当成全部原生内存。
+
 x264 迁移接口、发布顺序及验收记录见 [x264 迁移说明](docs/x264-migration.md)。早期公共库抽离记录保留在 [历史验证记录](docs/integration-validation.md)。
+
+## 有界异步 HDR 读回
+
+`AsyncResources(size)` 先返回原生主存预约量和 GPU 资源估算，再由 `PrepareAsync(size)` 创建两个固定槽。调用方在 `Submit` 前取得 BGRA 输出内存。提交返回前已完成参数、全帧有限值检查和输入接管，原生层不保留 Go 输入指针；`Collect` 只在调用期间借用 Go 输出。`Ready` 非阻塞，满槽返回 `ErrBusy`，旧代次或已收取的 `Ticket` 返回 `ErrTicket`。
+
+`Discard` 只作废交付，不提前释放在途槽：仍需完成查询及收取，或由 `Close` 安全收尾。部分 GPU 提交失败后不复用该处理器的槽；只有明确设备失效才由 `RecoverAsync` 恢复一次，并使全部旧令牌失效。有在途任务时禁止混用 `Process`；同步和异步共享颜色参数、Shader、LUT 与转换实现。
+
+Windows 使用公开 `pl_d3d11_wrap`、两个输出/staging 纹理与完成事件；事件完成后才非阻塞 Map。Vulkan/MoltenVK 使用两个原生上传缓冲和读回缓冲，遵守行对齐并通过 `pl_buf_poll(..., 0)` 检查可用性。上传缓冲替代隐式指针暂存，新增主存可以完整预约。每次提交后推进 GPU 命令，正常轮询不执行全局等待；安全析构可以等待。
+
+详细计时默认关闭。启用后每槽独立查询，结果关联任务，查询不足或尚未完成时跳过诊断。CPU `Submit` 包含上传、派发和命令推进；它与其子阶段不可重复相加。同步 `DownloadWait` 包含等待，异步该字段仅为读回命令提交，Map、CPU 复制和三个 GPU 区间分别报告；GPU 区间与 CPU 等待也不可相加。
+
+隔离入口为 `TestReadbackPerformanceMatrix`，仅在 `TERMOUS_HDR_READBACK_MATRIX` 指定输出 JSON 时运行。1080p/1440p、20/30/60Hz 和持续供帧交替三轮；`TERMOUS_HDR_READBACK_FOCUS=1` 使用每轮 600 帧的固定 60Hz 对照。普通测试不执行性能矩阵。此入口不包含 WGC、编码或网络，不能替代真实远控验收。
