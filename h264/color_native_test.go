@@ -34,7 +34,7 @@ func TestColorMatrixDecodedAndVUI(t *testing.T) {
 			t.Fatal(err)
 		}
 		for i, want := range []int{tc.y, tc.u, tc.v} {
-			// OpenH264 为有损编码，与既有平面测试保持相同的量化容差。
+			// x264 为有损编码，与既有平面测试保持相同的量化容差。
 			if got := sample.YUV[i]; got < want-4 || got > want+4 {
 				t.Fatalf("matrix=%d decoded=%v", tc.matrix, sample.YUV)
 			}

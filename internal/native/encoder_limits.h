@@ -19,7 +19,7 @@ inline bool tv_config_valid(tv_config c) {
       std::max(c.width, c.height) > 2560 ||
       std::min(c.width, c.height) > 1440 || c.bitrate < 100000 ||
       c.bitrate > tv_level_bitrate(c.level) || c.fps < 1 || c.fps > 60 ||
-      (c.matrix != 0 && c.matrix != 709))
+      (c.matrix != 0 && c.matrix != 709) || c.threads < 0 || c.threads > 16)
     return false;
   const int levels[][3] = {
       {31, 3600, 108000}, {32, 5120, 216000},

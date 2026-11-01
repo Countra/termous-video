@@ -36,8 +36,11 @@ func TestLevelCombinations(t *testing.T) {
 		if err != nil || !out.Keyframe || len(out.Data) == 0 {
 			t.Fatalf("encode %+v: %v", tc, err)
 		}
-		if tc.level == Level40 && e.UpdateRate(RateControl{Bitrate: 8_000_000, FPS: 60}) != ErrInvalidConfig {
-			t.Fatal("rate update bypassed level limit")
+		if tc.level == Level40 {
+			_, err := e.EncodeBGRA(frame.BGRA{Size: c.Size, Pixels: pixels, Stride: tc.w * 4}, Options{Rate: &RateControl{Bitrate: 8_000_000, FPS: 60}})
+			if err != ErrInvalidConfig {
+				t.Fatal("rate update bypassed level limit", err)
+			}
 		}
 		e.Close()
 	}

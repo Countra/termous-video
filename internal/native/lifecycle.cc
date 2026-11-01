@@ -4,13 +4,7 @@
 #include "encoder_limits.h"
 #include <memory>
 
-tv_encoder::~tv_encoder() {
-    if (codec) {
-        // C ABI 不允许异常逃逸；析构仍须尝试释放 OpenH264 对象。
-        try { codec->Uninitialize(); } catch (...) {}
-        try { WelsDestroySVCEncoder(codec); } catch (...) {}
-    }
-}
+tv_encoder::~tv_encoder() { if (codec) x264_encoder_close(codec); }
 extern "C" void tv_destroy(tv_encoder* encoder) { delete encoder; }
 
 extern "C" int tv_create(tv_config c, tv_encoder** output) {
@@ -19,29 +13,20 @@ extern "C" int tv_create(tv_config c, tv_encoder** output) {
     if (!tv_config_valid(c)) return TV_INVALID;
     try {
         auto e=std::make_unique<tv_encoder>();
-        if (WelsCreateSVCEncoder(&e->codec) || !e->codec) return TV_FAILED;
-        SEncParamExt p{};
-        if (e->codec->GetDefaultParams(&p)) return TV_FAILED;
-        p.iUsageType=SCREEN_CONTENT_REAL_TIME;
-        p.iPicWidth=c.width; p.iPicHeight=c.height;
-        p.iTargetBitrate=c.bitrate; p.iMaxBitrate=tv_level_bitrate(c.level);
-        p.iRCMode=RC_BITRATE_MODE; p.fMaxFrameRate=float(c.fps);
-        p.iTemporalLayerNum=1; p.iSpatialLayerNum=1;
-        p.uiIntraPeriod=c.fps*2; p.bEnableFrameSkip=true;
-        p.bEnableAdaptiveQuant=false; p.bEnableBackgroundDetection=false;
-        p.iMultipleThreadIdc=2; p.iEntropyCodingModeFlag=0;
-        auto& layer=p.sSpatialLayers[0];
-        layer.iVideoWidth=c.width; layer.iVideoHeight=c.height; layer.fFrameRate=float(c.fps);
-        layer.iSpatialBitrate=c.bitrate; layer.iMaxSpatialBitrate=p.iMaxBitrate;
-        layer.uiProfileIdc=PRO_BASELINE; layer.uiLevelIdc=static_cast<ELevelIdc>(c.level);
-        // RGB 输入为 sRGB；矩阵与传递函数是不同字段，不能互相替代。
-        layer.bVideoSignalTypePresent=true; layer.uiVideoFormat=5;
-        layer.bFullRange=false; layer.bColorDescriptionPresent=true;
-        layer.uiColorPrimaries=1; layer.uiTransferCharacteristics=13;
-        layer.uiColorMatrix=c.matrix==709 ? 1 : 6;
-        layer.sSliceArgument.uiSliceMode=SM_SINGLE_SLICE;
-        if (e->codec->InitializeExt(&p)) return TV_FAILED;
-        e->config=c; *output=e.release();
+        // 显式约束切片行数，避免 x264 静默降低线程数后诊断仍显示请求值。
+        c.threads=std::max(1, std::min(c.threads, ((c.height+15)/16)/4));
+        struct Parameters { x264_param_t value{}; ~Parameters() { x264_param_cleanup(&value); } } params;
+        if (!tv_parameters(params.value,c)) return TV_FAILED;
+        e->codec=x264_encoder_open(&params.value);
+        if (!e->codec || !tv_parameters_match(e->codec,c)) return TV_FAILED;
+        e->config=c;
+        *output=e.release();
         return TV_OK;
     } catch (...) { return TV_FAILED; }
+}
+
+extern "C" int tv_get_info(tv_encoder* e, tv_info* output) {
+    if (!e || !e->codec || !output) return TV_INVALID;
+    *output={"x264", X264_POINTVER, "superfast/zerolatency", e->config.threads};
+    return TV_OK;
 }

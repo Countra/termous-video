@@ -3,23 +3,20 @@
 #include "encoder_state.h"
 #include "encoder_limits.h"
 
-static bool apply(ISVCEncoder* codec, int bitrate, int fps) {
-    SBitrateInfo rate{SPATIAL_LAYER_ALL,bitrate};
-    float framerate=float(fps);
-    // 两项都尝试写入，恢复路径不能因第一项失败跳过第二项。
-    int a=codec->SetOption(ENCODER_OPTION_BITRATE,&rate);
-    int b=codec->SetOption(ENCODER_OPTION_FRAME_RATE,&framerate);
-    return a==0 && b==0;
-}
-extern "C" int tv_rate(tv_encoder* e, int bitrate, int fps) {
-    if (!e || !e->codec) return TV_INVALID;
-    auto candidate=e->config; candidate.bitrate=bitrate; candidate.fps=fps;
+int tv_prepare_rate(tv_encoder* e, tv_options options, tv_config& candidate) {
+    candidate=e->config;
+    if (!options.rate_present) return TV_OK;
+    candidate.bitrate=options.bitrate; candidate.fps=options.fps;
     if (!tv_config_valid(candidate)) return TV_INVALID;
-    if (e->unusable) return TV_UNUSABLE;
-    try {
-        if (apply(e->codec,bitrate,fps)) { e->config.bitrate=bitrate; e->config.fps=fps; return TV_OK; }
-    } catch (...) {}
-    try { if (apply(e->codec,e->config.bitrate,e->config.fps)) return TV_FAILED; } catch (...) {}
-    e->unusable=true;
-    return TV_UNUSABLE;
+    if (candidate.fps!=e->config.fps) return TV_RECONFIGURE;
+    if (candidate.bitrate/1000==e->config.bitrate/1000) return TV_OK;
+#ifdef TERMOUS_VIDEO_FIXTURE
+    if (e->fault==1) { e->fault=0; return TV_FAILED; }
+#endif
+    x264_param_t p{};
+    x264_encoder_parameters(e->codec,&p);
+    p.rc.i_bitrate=p.rc.i_vbv_max_bitrate=candidate.bitrate/1000;
+    p.rc.i_vbv_buffer_size=tv_vbv_buffer_size(candidate);
+    // 此时只暂存到 x264；必须在本次编码成功并复核参数后提交配置。
+    return x264_encoder_reconfig(e->codec,&p)==0 ? TV_OK : TV_FAILED;
 }

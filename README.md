@@ -10,9 +10,9 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放、屏幕�
 | Linux amd64 | GCC | `sdk/linux/amd64` |
 | macOS arm64 | Apple Clang，SDK 12+／Go 1.27 调用端 13+ | `sdk/darwin/arm64` |
 
-依赖构建层已切换为独立的 `libtermous_video_x264.a`、`libtermous_video_yuv.a`、`libtermous_video_openh264.a`，通过 `termous_video_` 私有符号隔离；libplacebo 及其静态依赖保存在 `sdk/<系统>/<架构>/placebo/`，保持原始符号。不分发第三方 DLL、so、dylib、可执行程序或视频服务。完整 OpenH264 包含编码和解码能力；本阶段使用其解码器验证 x264 输出，后续生产编码仍迁移至 x264。RDP 继续自行维护协议需要的 OpenH264／libyuv。
+依赖构建层已切换为独立的 `libtermous_video_x264.a`、`libtermous_video_yuv.a`、`libtermous_video_openh264.a`，通过 `termous_video_` 私有符号隔离；libplacebo 及其静态依赖保存在 `sdk/<系统>/<架构>/placebo/`，保持原始符号。不分发第三方 DLL、so、dylib、可执行程序或视频服务。生产编码只链接 x264／libyuv；完整 OpenH264 仅由 SDK 检查和带 `video_native_fixture` 标签的解码测试使用。RDP 继续自行维护协议需要的 OpenH264／libyuv。
 
-当前仅完成 SDK 编译层迁移：已有 `sdk/` 文件等待 GitHub CI 成套替换，Go/C 编码适配尚未迁移，不能把新 SDK 验证通过理解为生产 Go API 已可用。本阶段 CI 不运行旧适配的原生测试。详见 [构建说明](3rd/README.md)。
+生产编码采用固定的 `superfast + zerolatency`、Constrained Baseline、切片多线程、无 B 帧和无 lookahead。使用已发布的 schema 4 SDK，不保留 OpenH264 生产回退分支。详见 [构建说明](3rd/README.md)。
 
 独立 `color` API 使用已提交的 libplacebo 7.387.0 SDK，按需处理 RGBA16F scRGB。Windows 优先 D3D11 硬件，初始化失败后尝试系统 WARP；Linux 使用系统 Vulkan，macOS 使用静态 MoltenVK 调用系统 Metal。没有自研 CPU 转换或捆绑渲染器；后端不可用时返回明确错误。构建方法和依赖见 [libplacebo 构建说明](3rd/placebo/README.md)。
 
@@ -29,17 +29,18 @@ Termous 进程内公共视频库，提供 BGRA／I420 转换、缩放、屏幕�
 ## 使用
 
 ```text
+python scripts/check.py --link --race
 python 3rd/check.py
 python -B -m unittest discover -s 3rd/tests -v
 python 3rd/sdk.py check --sdk-dir <本机新SDK目录>
 python scripts/check-coexist.py --sdk-dir <本机新SDK目录> --rdp-sdk ../termous-rdp/sdk/windows/amd64
 ```
 
-最后一条检查 RDP 自有依赖与 video 私有 x264／OpenH264 能否共同链接、运行，并确认双方 OpenH264 编解码入口和 libyuv 未串用。Linux/macOS 请替换 SDK 路径。`scripts/check.py` 等公共 Go API 检查入口保留供后续适配迁移使用，当前不作为编译层验收。详细工具链、缓存和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建。
+最后一条检查 RDP 自有依赖与 video 私有 x264／OpenH264 能否共同链接、运行，并确认双方 OpenH264 编解码入口和 libyuv 未串用。Linux/macOS 请替换 SDK 路径。`scripts/check.py` 同时检查普通生产构建、解码夹具、race 和动态依赖，并核验普通编码产物不引入视频库的 OpenH264。详细工具链、缓存和链接说明见 [3rd/README.md](3rd/README.md)。只支持本机构建。
 
 ## CI
 
-仅推送到 `main` 分支时自动在三个平台执行工具测试、无 cgo 测试和已发布 schema 4 SDK 的完整性／原生检查。旧 SDK 尚未重建时明确报告未验证；新旧混用或新产物损坏必须失败。普通 CI 不构建 SDK，也暂不验证尚未迁移的生产原生 Go API。
+仅推送到 `main` 分支时自动在三个平台执行工具测试、无 cgo 测试和已发布 schema 4 SDK 的完整性／原生检查。同时运行生产原生 Go API、跨库解码、race 和链接检查；缺失、损坏或旧代 SDK 必须失败。普通 CI 不构建 SDK。
 
 SDK 构建仅支持手动触发，与 RDP 等仓库保持一致。在 GitHub Actions 中选择 **Build video SDK pull request → Run workflow**，选择工作流分支；可用 `target_branch` 指定已有目标分支，留空时使用所选工作流分支。
 
@@ -62,9 +63,9 @@ defer encoder.Close()
 result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, TimestampMS: 0})
 ```
 
-调用者计算目标尺寸及单调递增的毫秒时间戳。BGRA 输入支持行填充，I420 输入允许三个平面使用独立步长；默认保留 BT.601 有限范围转换，`Config.Matrix = h264.Matrix709` 显式选择 BT.709。缩放仍为双线性。VUI 标记 BT.709 原色、实际矩阵、sRGB 传递函数和有限范围；`EncodeI420` 的调用方应提供与配置一致的 I420。
+调用者计算目标尺寸及外部毫秒时间戳；编码器使用独立递增帧号，允许重复的非负外部时间戳。BGRA 输入支持行填充，I420 输入允许三个平面使用独立步长；默认保留 BT.601 有限范围转换，`Config.Matrix = h264.Matrix709` 显式选择 BT.709。缩放仍为双线性。VUI 标记 BT.709 原色、实际矩阵、sRGB 传递函数和有限范围；`EncodeI420` 的调用方应提供与配置一致的 I420。
 
-编码输出宽高必须为偶数，最小 16×16，最大长边 2560、短边 1440，最高 60fps／100Mbps。`Config.Validate` 和 `UpdateRate` 联合校验尺寸、宏块率、码率及 Level，不能任意拼接独立最大值；`MinimumLevel` 返回满足整个组合的最低等级。独立帧和转换接口仍支持更小或奇数尺寸。编码器不创建观看预设或网络预算。
+编码输出宽高必须为偶数，最小 16×16，最大长边 2560、短边 1440，最高 60fps／100Mbps。`Config.Validate` 和逐帧 `Options.Rate` 联合校验尺寸、宏块率、码率及 Level，不能任意拼接独立最大值；`MinimumLevel` 返回满足整个组合的最低等级。独立帧和转换接口仍支持更小或奇数尺寸。编码器不创建观看预设或网络预算。
 
 | 输出组合 | 最低等级（码率仍需单独满足该等级） |
 |---|---|
@@ -72,9 +73,11 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 | 1080p30／1080p60 | 4.0／4.2 |
 | 1440p30／1440p60 | 5.0／5.1 |
 
-输入为同步只读借用，调用返回前不得修改或释放；返回的 Annex-B 数据由 Go 持有，后续调用不覆盖。`Skipped` 表示编码器跳帧。转换函数写入调用方提供的缓冲，拒绝输入／输出重叠。编码器的方法内部串行化，关闭等待在途调用结束。
+输入为同步只读借用，调用返回前不得修改或释放；返回的 Annex-B 数据由 Go 持有，后续调用不覆盖。`Skipped` 保留合同兼容；当前 x264 路径要求同步输出，意外的延迟或空输出按错误处理。转换函数写入调用方提供的缓冲，拒绝输入／输出重叠。编码器的方法内部串行化，关闭等待在途调用结束。
 
-`UpdateRate` 失败会恢复旧配置；若恢复失败，返回 `h264.ErrUnusable`，实例只能关闭。尺寸／Level 变化由调用方创建候选实例并确认首个关键帧后再替换。错误支持 `errors.Is`，公共合同不包含 RDP 错误码。
+码率通过 `EncodeBGRA`／`EncodeI420` 的 `Options.Rate` 与本帧一起提交，原 `UpdateRate` 接口已移除。验证和像素准备先完成，再重配并编码；成功输出并复核实际参数后才提交配置。编码前拒绝保留旧状态，进入编码后失败返回 `h264.ErrUnusable`，实例只能关闭。FPS 变化返回 `ErrReconfigureRequired`；FPS／尺寸／Level 变化由调用方创建候选实例并确认完整 SPS／PPS／IDR 后替换。错误支持 `errors.Is`，公共合同不包含 RDP 错误码。
+
+`Config.Threads=0` 使用 `GOMAXPROCS`、16 和切片行数上限的最小值；显式支持 1–16。`Encoder.Info()` 返回创建时确认的实现、版本、预设及有效线程数，关闭后仍可读取。码率采用 ABR 与相同的 VBV maxrate，VBV 容量为 250ms 且至少一个帧周期，关闭 filler／HRD；该容量不是输出等待队列。bit/s 到 kbit/s 向下取整，GOP 为配置 FPS 的两倍，运行中不自动切换预设或线程数。
 
 关闭 cgo 或不支持的平台可以编译 Go API，能力返回不支持。支持平台必须提供私有 SDK 和本机编译器。正式依赖在首个 Go 库版本发布后固定到实际版本；本地通过相邻仓库 workspace，产品构建通过源码锁和临时 modfile 接入，不使用不存在的远程版本。
 
@@ -88,8 +91,8 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 输入步长须按 8 字节像素对齐，输出步长须按 4 字节像素对齐；允许行间填充，最后一行可省略尾部填充。不满足布局要求时在 GPU 传输前返回 `frame.ErrInvalid`，不影响之后的有效帧处理。
 
-合成测试用独立标量公式检查灰阶与高光；`video_native_fixture` 额外检查派发次数、白电平变更时的 Shader 复用，以及同帧无损 PNG／H.264 实际解码。VUI 由编码器自身的原生回归独立检查；跨模块联调测试放在 `color` 包，保持独立 `h264` 包的测试与消费者都不引入 GPU 依赖。设置 `TERMOUS_HDR_FIXTURE_OUTPUT` 可保存合成素材；默认测试不写文件、不采集桌面。基准 `BenchmarkHDRPipeline` 预热 30 帧后报告平均、P95、吞吐及 Go 分配。
+合成测试用独立标量公式检查灰阶与高光；`video_native_fixture` 额外检查派发次数、白电平变更时的 Shader 复用，以及同帧无损 PNG／H.264 实际解码。VUI 由编码器自身的原生回归独立检查；跨模块联调测试放在 `color` 包，保持独立 `h264` 包的测试与消费者都不引入 GPU 依赖。设置 `TERMOUS_HDR_FIXTURE_OUTPUT` 可保存合成素材；默认测试不写文件、不采集桌面。基准 `BenchmarkHDRPipeline` 使用整幅动态素材，预热 120 帧后分别报告转换、编码、总耗时 P95、吞吐及 Go 分配。
 
 `Options.Software` 仅用于 Windows 系统 WARP 验证；Unix 自动模式可以选择系统已有软件 Vulkan。三平台使用相同接口，实际原生运行以对应平台 CI 为准。Windows 合成转换与编码通过不代表真实 HDR 桌面已验收，当前结果见 [1440p／HDR 验证记录](../backend/docs/desktop-video-hdr.md)。
 
-本次迁移的实测结果、体积变化及发布顺序见 [验证记录](docs/integration-validation.md)。
+x264 迁移接口、发布顺序及验收记录见 [x264 迁移说明](docs/x264-migration.md)。早期公共库抽离记录保留在 [历史验证记录](docs/integration-validation.md)。

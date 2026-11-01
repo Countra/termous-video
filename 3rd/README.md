@@ -16,9 +16,9 @@ x264 固定 8-bit、4:2:0、逐行编码，启用平台线程与 x64 NASM / ARM6
 
 ## 当前实施边界
 
-构建、安装、artifact 和 SDK PR 统一使用 `sdk/<目标>/`（schema 4），包含 x264、完整 OpenH264、libyuv 和原有 libplacebo 组件。现存 SDK 文件保留到 CI 成套重建后替换，不建立并行过渡目录。OpenH264 同时提供编码与解码能力，本阶段主要用于解码 x264 合成输出；后续生产编码仍迁移至 x264。
+构建、安装、artifact 和 SDK PR 统一使用 `sdk/<目标>/`（schema 4），包含 x264、完整 OpenH264、libyuv 和原有 libplacebo 组件。SDK 通过 CI 成套重建后替换，不建立并行过渡目录。OpenH264 同时提供编码与解码能力，生产适配仅使用 x264，OpenH264 解码用于跨库验证。
 
-本阶段只验证依赖 SDK。Go/C 生产编码适配尚未迁移，其原生编译与运行测试不作为当前 CI 的通过条件；不保证新 SDK 能被旧适配调用。三平台产物合并并就绪后，再替换编码适配和编码解码测试。RDP 自身的 OpenH264 不属于迁移范围。
+依赖 SDK 检查与 `scripts/check.py --link --race` 的生产适配检查独立执行，普通 CI 同时覆盖两层。生产 Go/C 编码已使用 x264，测试构建显式链接 OpenH264 解码器。RDP 自身的 OpenH264 不属于迁移范围。
 
 ## 工具链
 
@@ -45,7 +45,7 @@ Linux / macOS 分别使用 `linux/amd64`、`darwin/arm64`，也可以省略 `--t
 
 `verify` 严格校验指定 SDK 与当前配方一致；`audit` 校验已安装三平台 SDK 的完整性、来源一致性及运行记录，允许同代 SDK 的配方稍早于源码。旧清单不作为有效 SDK 接受。`python 3rd/sdk.py check --sdk-dir <SDK目录>` 对本机 SDK 执行编码、跨库解码、渲染和链接检查，省略目录时使用 `sdk/<目标>`。
 
-普通 CI 的 `--allow-unbuilt` 只在三个目标都是完整且来源一致的同代旧产物（schema 2 或 schema 3）时报告待重建，不运行旧原生检查。旧产物仍核对文件摘要、归档集合与格式、必要头文件、许可证、依赖锁及 libplacebo 子组件；整个 SDK 缺失、缺平台、新旧混用、文件损坏或跨代产物不允许跳过。手动 SDK 工作流不使用该选项，所有新产物必须完成严格校验。
+工具的 `--allow-unbuilt` 仅供旧 SDK 迁移诊断；当前生产 CI 不启用。该选项只在三个目标都是完整且来源一致的同代旧产物（schema 2 或 schema 3）时报告待重建，不运行旧原生检查。旧产物仍核对文件摘要、归档集合与格式、必要头文件、许可证、依赖锁及 libplacebo 子组件；整个 SDK 缺失、缺平台、新旧混用、文件损坏或跨代产物不允许跳过。手动 SDK 工作流不使用该选项，所有新产物必须完成严格校验。
 
 本工作区的 Go 缓存继续设置为：
 
@@ -87,6 +87,6 @@ macOS:   libtermous_video_x264.a libtermous_video_yuv.a -mmacosx-version-min=12.
 
 CI 固定来源提交，将每个文件 SHA256、依赖锁、配方摘要、工具链和验证结果记录在 `manifest.json`。发布 job 验证全部平台、来源一致性和目录范围后，用 `git commit -F` 提交 SDK 到独立分支并创建 PR。测试中的 Git/GitHub 操作均使用模拟，不创建真实 PR。
 
-本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。源码推送后，在 GitHub Actions 手动运行 **Build video SDK pull request** 才会构建和提交 SDK PR。仅推送到 `main` 时自动执行构建工具测试、无 cgo 测试和已发布 SDK 的原生验证；其他分支推送和 PR 事件不自动触发。普通 CI 不重建 SDK，本地脚本不会自动提交或推送。上层原生 Go API 测试需在后续编码适配迁移后恢复，SDK 的独立 cgo 检查不代替产品 API 验证。
+本机未提交源码构建会明确记录 `source_dirty`，不能作为 CI 发布产物。源码推送后，在 GitHub Actions 手动运行 **Build video SDK pull request** 才会构建和提交 SDK PR。仅推送到 `main` 时自动执行构建工具测试、无 cgo 测试和已发布 SDK 的原生验证；其他分支推送和 PR 事件不自动触发。普通 CI 不重建 SDK，本地脚本不会自动提交或推送。普通 CI 另行运行生产 Go API、解码夹具、race 及产物链接检查，SDK 的独立 cgo 检查不代替产品 API 验证。
 
 RDP 及采集库继续维护自己的依赖；video 私有符号与它们隔离，不依赖链接顺序或相同版本。组合产物仍需验证真实链接、动态依赖和合成画面，符号审计不能替代对应平台的运行验证。本次不修改 RDP 构建与依赖。

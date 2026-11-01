@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-func TestNativeBudgetFailureRestoresOrInvalidates(t *testing.T) {
-	if native.TestRateBoundary() != 0 {
-		t.Fatal("native rollback contract failed")
+func TestNativeRateTransactionRejectsOrInvalidates(t *testing.T) {
+	if code := native.TestRateBoundary(); code != 0 {
+		t.Fatal("native transaction contract failed", code)
 	}
 }
 func TestI420DecodesWithExpectedDimensionsAndLuma(t *testing.T) {

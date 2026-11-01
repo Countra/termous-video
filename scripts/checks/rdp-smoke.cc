@@ -1,4 +1,4 @@
-// 只消费调用者提供的 RDP SDK；video 的编译与发布不依赖 OpenH264。
+// 只消费调用者提供的 RDP SDK，验证 FreeRDP 自有 OpenH264／libyuv。
 #include <wels/codec_api.h>
 #include <libyuv.h>
 #include <cstdint>

@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	ErrUnsupported   = native.ErrUnsupported
-	ErrClosed        = native.ErrClosed
-	ErrInvalidConfig = native.ErrInvalidConfig
-	ErrNative        = native.ErrNative
-	ErrUnusable      = native.ErrUnusable
+	ErrUnsupported         = native.ErrUnsupported
+	ErrClosed              = native.ErrClosed
+	ErrInvalidConfig       = native.ErrInvalidConfig
+	ErrNative              = native.ErrNative
+	ErrUnusable            = native.ErrUnusable
+	ErrReconfigureRequired = native.ErrReconfigureRequired
 )
 
 type Level int
@@ -43,10 +44,14 @@ type Config struct {
 	Rate   RateControl
 	Level  Level
 	Matrix Matrix
+	// Threads 为零时采用当前 CPU 预算，显式值限制在 1–16；实际值受切片行数约束。
+	Threads int
 }
 type Options struct {
 	Keyframe    bool
 	TimestampMS int64
+	// Rate 与本帧编码一起提交，仅允许同 FPS 的码率更新。
+	Rate *RateControl
 }
 type Result struct {
 	// Data 为独立的 Annex-B 数据；Skipped 为真时没有输出帧。
@@ -69,7 +74,7 @@ func QueryCapabilities() Capabilities {
 // Validate 同时验证尺寸、宏块率和码率；MaxSize 的长短边允许互换。
 func (c Config) Validate() error { return c.native().Validate() }
 func (c Config) native() native.Config {
-	return native.Config{Width: c.Size.Width, Height: c.Size.Height, Bitrate: c.Rate.Bitrate, FPS: c.Rate.FPS, Level: int(c.Level), Matrix: int(c.Matrix)}
+	return native.Config{Width: c.Size.Width, Height: c.Size.Height, Bitrate: c.Rate.Bitrate, FPS: c.Rate.FPS, Level: int(c.Level), Matrix: int(c.Matrix), Threads: c.Threads}
 }
 func MinimumLevel(size frame.Size, rate RateControl) (Level, error) {
 	level := limits.Minimum(size.Width, size.Height, rate.Bitrate, rate.FPS)
@@ -84,7 +89,16 @@ type Encoder struct {
 	mu     sync.Mutex
 	engine *native.Encoder
 	config Config
+	info   Info
 }
+
+// Info 仅描述创建时确认的实现参数，不把请求预算当作实测码率。
+type Info struct {
+	Implementation, Version, Preset string
+	Threads                         int
+}
+
+func (e *Encoder) Info() Info { return e.info }
 
 func New(config Config) (*Encoder, error) {
 	c := config.native()
@@ -95,25 +109,29 @@ func New(config Config) (*Encoder, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Encoder{engine: e, config: config}, nil
+	info, err := e.Info()
+	if err != nil {
+		e.Close()
+		return nil, err
+	}
+	return &Encoder{engine: e, config: config, info: Info(info)}, nil
 }
 
-func (e *Encoder) UpdateRate(rate RateControl) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.engine == nil {
-		return ErrClosed
+func (e *Encoder) options(o Options) (native.Options, error) {
+	result := native.Options{Keyframe: o.Keyframe, TimestampMS: o.TimestampMS}
+	if o.Rate == nil {
+		return result, nil
 	}
 	candidate := e.config
-	candidate.Rate = rate
+	candidate.Rate = *o.Rate
 	if candidate.Validate() != nil {
-		return ErrInvalidConfig
+		return result, ErrInvalidConfig
 	}
-	if err := e.engine.UpdateRate(rate.Bitrate, rate.FPS); err != nil {
-		return err
+	if candidate.Rate.FPS != e.config.Rate.FPS {
+		return result, ErrReconfigureRequired
 	}
-	e.config.Rate = rate
-	return nil
+	result.Rate = &native.RateControl{Bitrate: candidate.Rate.Bitrate, FPS: candidate.Rate.FPS}
+	return result, nil
 }
 
 func (e *Encoder) EncodeBGRA(src frame.BGRA, options Options) (Result, error) {
@@ -128,7 +146,14 @@ func (e *Encoder) EncodeBGRA(src frame.BGRA, options Options) (Result, error) {
 	if options.TimestampMS < 0 {
 		return Result{}, frame.ErrInvalid
 	}
-	out, err := e.engine.EncodeBGRA(src, options.Keyframe, options.TimestampMS)
+	o, err := e.options(options)
+	if err != nil {
+		return Result{}, err
+	}
+	out, err := e.engine.EncodeBGRA(src, o)
+	if err == nil && o.Rate != nil {
+		e.config.Rate = RateControl(*o.Rate)
+	}
 	return e.result(out, options), err
 }
 
@@ -141,7 +166,14 @@ func (e *Encoder) EncodeI420(src frame.I420, options Options) (Result, error) {
 	if src.Validate() != nil || src.Size != e.config.Size || options.TimestampMS < 0 {
 		return Result{}, frame.ErrInvalid
 	}
-	out, err := e.engine.EncodeI420(src, options.Keyframe, options.TimestampMS)
+	o, err := e.options(options)
+	if err != nil {
+		return Result{}, err
+	}
+	out, err := e.engine.EncodeI420(src, o)
+	if err == nil && o.Rate != nil {
+		e.config.Rate = RateControl(*o.Rate)
+	}
 	return e.result(out, options), err
 }
 

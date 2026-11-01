@@ -39,9 +39,9 @@ func TestEncodingAndOwnership(t *testing.T) {
 		t.Fatalf("keyframe: %+v %v", first, err)
 	}
 	nals := map[byte]bool{}
-	for i := 0; i+4 < len(first.Data); i++ {
-		if bytes.Equal(first.Data[i:i+4], []byte{0, 0, 0, 1}) {
-			nals[first.Data[i+4]&31] = true
+	for i := 0; i+3 < len(first.Data); i++ {
+		if bytes.Equal(first.Data[i:i+3], []byte{0, 0, 1}) {
+			nals[first.Data[i+3]&31] = true
 		}
 	}
 	if !nals[7] || !nals[8] || !nals[5] {
@@ -49,10 +49,7 @@ func TestEncodingAndOwnership(t *testing.T) {
 	}
 	copyOfFirst := bytes.Clone(first.Data)
 	for i, rate := range []int{250000, 2160000, 8000000, 100000} {
-		if err := e.UpdateRate(RateControl{Bitrate: rate, FPS: 10}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := e.EncodeBGRA(src, Options{Keyframe: true, TimestampMS: int64((i + 1) * 100)}); err != nil {
+		if _, err := e.EncodeBGRA(src, Options{Rate: &RateControl{Bitrate: rate, FPS: 15}, Keyframe: true, TimestampMS: int64((i + 1) * 100)}); err != nil {
 			t.Fatal(err)
 		}
 	}

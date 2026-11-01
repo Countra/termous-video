@@ -12,7 +12,7 @@ func TestBaselineLevelAndOddPaddedSource(t *testing.T) {
 	if !QueryCapabilities().Supported {
 		t.Skip("native SDK unavailable")
 	}
-	for _, level := range []Level{Level31, Level40} {
+	for _, level := range []Level{Level31, Level32, Level40, Level41, Level42, Level50, Level51} {
 		config := testConfig()
 		config.Level = level
 		e, err := New(config)
@@ -31,7 +31,7 @@ func TestBaselineLevelAndOddPaddedSource(t *testing.T) {
 		for i := 0; i+8 <= len(out.Data); i++ {
 			if bytes.Equal(out.Data[i:i+4], []byte{0, 0, 0, 1}) && out.Data[i+4]&31 == 7 {
 				found = true
-				if out.Data[i+5] != 66 || out.Data[i+7] != byte(level) {
+				if out.Data[i+5] != 66 || out.Data[i+6]&0xc0 != 0xc0 || out.Data[i+7] != byte(level) {
 					t.Fatalf("unexpected profile/level: %d/%d", out.Data[i+5], out.Data[i+7])
 				}
 			}
@@ -63,7 +63,7 @@ func TestRejectedInputLeavesEncoderUsable(t *testing.T) {
 	if _, err := e.EncodeI420(wrongSize, Options{}); !errors.Is(err, frame.ErrInvalid) {
 		t.Fatal("mismatched I420 accepted", err)
 	}
-	if err := e.UpdateRate(RateControl{Bitrate: 1, FPS: 30}); !errors.Is(err, ErrInvalidConfig) {
+	if _, err := e.EncodeBGRA(testSource(), Options{Rate: &RateControl{Bitrate: 1, FPS: 30}}); !errors.Is(err, ErrInvalidConfig) {
 		t.Fatal("invalid budget accepted", err)
 	}
 	if _, err := e.EncodeBGRA(testSource(), Options{Keyframe: true}); err != nil {

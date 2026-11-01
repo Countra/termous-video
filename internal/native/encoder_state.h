@@ -1,19 +1,20 @@
 #pragma once
-#include "bridge.h"
-#include <termous_video_symbols.h>
-#include <wels/codec_api.h>
-#include <libyuv.h>
-#include <vector>
+#include "pixels.h"
+#include <x264.h>
 
 struct tv_encoder {
-    ISVCEncoder* codec = nullptr;
+    x264_t* codec = nullptr;
     tv_config config{};
     bool unusable = false;
-    std::vector<uint8_t> source, scaled, output;
+    int64_t sequence = 0;
+    std::vector<uint8_t> source, scaled;
+#ifdef TERMOUS_VIDEO_FIXTURE
+    int fault = 0;
+#endif
     ~tv_encoder();
 };
-bool tv_size(int width, int height);
-bool tv_plane_valid(tv_plane plane, int width, int height);
-bool tv_i420_valid(tv_i420 frame);
-tv_i420 tv_buffer(std::vector<uint8_t>& buffer, int width, int height);
-int tv_encode(tv_encoder* encoder, tv_i420 frame, int keyframe, int64_t timestamp, tv_output* output);
+bool tv_parameters(x264_param_t& params, tv_config config);
+int tv_vbv_buffer_size(tv_config config);
+bool tv_parameters_match(x264_t* codec, tv_config config);
+int tv_prepare_rate(tv_encoder* encoder, tv_options options, tv_config& candidate);
+int tv_encode(tv_encoder* encoder, tv_i420 frame, tv_options options, tv_output* output);

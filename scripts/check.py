@@ -47,9 +47,20 @@ def main():
     output = ROOT / "build/checks/go" / target
     output.mkdir(parents=True, exist_ok=True)
     packages = ["./frame", "./convert", "./h264", "./color", "./internal/..."]
+    subprocess.run(["go", "test", "-count=1", *packages],
+                   cwd=ROOT, env=env, check=True, timeout=180)
     subprocess.run(["go", "test", "-count=1", "-tags=video_native_fixture", *(["-race"] if args.race else []),
                     *packages], cwd=ROOT, env=env, check=True, timeout=180)
     if args.link:
+        production = output / ("video-production.test.exe" if target.startswith("windows/") else "video-production.test")
+        subprocess.run(["go", "test", "-c", "-o", str(production), "./h264"],
+                       cwd=ROOT, env=env, check=True, timeout=180)
+        nm = shutil.which("nm")
+        if not nm:
+            raise ValueError("Required symbol inspection tool is missing: nm")
+        symbols = subprocess.check_output([nm, str(production)], env=env, text=True, encoding="utf-8", timeout=30)
+        if "termous_video_x264_encoder_open_" not in symbols or "termous_video_Wels" in symbols:
+            raise ValueError("Production encoder must link private x264 without private OpenH264")
         binary = output / ("video.test.exe" if target.startswith("windows/") else "video.test")
         subprocess.run(["go", "test", "-c", "-tags=video_native_fixture", "-o", str(binary), "./h264"],
                        cwd=ROOT, env=env, check=True, timeout=180)
@@ -57,6 +68,7 @@ def main():
         if not inspect:
             raise ValueError("Required binary inspection tool is missing")
         print("Dynamic dependencies:", dynamic_dependencies(binary, target, {"inspect": inspect}, env))
+        print("Production dependencies:", dynamic_dependencies(production, target, {"inspect": inspect}, env))
         color_binary = output / ("color.test.exe" if target.startswith("windows/") else "color.test")
         subprocess.run(["go", "test", "-c", "-o", str(color_binary), "./color"],
                        cwd=ROOT, env=env, check=True, timeout=180)

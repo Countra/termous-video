@@ -1,6 +1,6 @@
 //go:build cgo && !android && !ios && ((windows && amd64) || (linux && amd64) || (darwin && arm64))
 
-#include "encoder_state.h"
+#include "pixels.h"
 
 bool tv_size(int width, int height) {
     return width > 0 && height > 0 && uint64_t(width) * uint64_t(height) <= 16 * 1024 * 1024;
