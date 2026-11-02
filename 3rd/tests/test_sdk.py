@@ -94,11 +94,42 @@ class SDKTests(unittest.TestCase):
                 sdk = self.build / target
                 fixture(sdk, target)
                 # 模拟 runner 默认版本比项目基线高；非 macOS 检查不修改此环境设置。
-                with patch.dict(go_entry.os.environ, {"MACOSX_DEPLOYMENT_TARGET": "15.0"}):
+                # 工具单元测试不要求安装 Go；真实工具链由后续原生检查覆盖。
+                flags = {name: "-O2 -g" for name in ("CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS")}
+                with patch.dict(go_entry.os.environ, {"MACOSX_DEPLOYMENT_TARGET": "15.0"}), \
+                        patch.object(go_entry.subprocess, "check_output", return_value=json.dumps(flags)):
                     env = go_entry.go_environment(sdk, target)
                     self.assertEqual(env["MACOSX_DEPLOYMENT_TARGET"],
                                      "13.0" if target.startswith("darwin/") else "15.0")
                     self.assertEqual(go_entry.os.environ["MACOSX_DEPLOYMENT_TARGET"], "15.0")
+
+    def test_go_checks_preserve_effective_toolchain_flags(self):
+        sdk = self.build / "sdk with spaces"
+        fixture(sdk, TARGETS[0])
+        for flags in (
+                {name: "-O2 -g" for name in ("CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS")},
+                {"CGO_CFLAGS": "-O1 -g", "CGO_CXXFLAGS": "-O3 -g", "CGO_LDFLAGS": "-g"}):
+            with self.subTest(flags=flags):
+                original = {"PATH": "", "CGO_ENABLED": "0", "GOTOOLCHAIN": "auto"}
+
+                def read_flags(*args, **kwargs):
+                    # mock 保存字典引用，必须在调用当时核对，避免后续修改掩盖环境错误。
+                    self.assertEqual(kwargs["env"], original | {"CGO_ENABLED": "1", "GOTOOLCHAIN": "local"})
+                    return json.dumps(flags)
+
+                with patch.dict(go_entry.os.environ, original, clear=True), \
+                        patch.object(go_entry.subprocess, "check_output", side_effect=read_flags) as query:
+                    env = go_entry.go_environment(sdk, TARGETS[0])
+                    query.assert_called_once_with(
+                        ["go", "env", "-json", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"],
+                        cwd=go_entry.ROOT, env=env, text=True, timeout=30)
+                    for name, value in flags.items():
+                        self.assertTrue(env[name].startswith(value + " "), env[name])
+                    self.assertIn(f'"-I{(sdk / "include").as_posix()}"', env["CGO_CXXFLAGS"])
+                    self.assertIn(f'"-L{(sdk / "lib").as_posix()}"', env["CGO_LDFLAGS"])
+                    self.assertEqual(env["CGO_ENABLED"], "1")
+                    self.assertEqual(env["GOTOOLCHAIN"], "local")
+                    self.assertEqual(dict(go_entry.os.environ), original)
 
     def test_failed_replace_restores_old_sdk(self):
         target = "darwin/arm64"
