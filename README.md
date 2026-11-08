@@ -79,7 +79,7 @@ result, err := encoder.EncodeBGRA(source, h264.Options{Keyframe: true, Timestamp
 
 `Config.Threads=0` 使用 `GOMAXPROCS`、16 和切片行数上限的最小值；显式支持 1–16。`Encoder.Info()` 返回创建时确认的实现、版本、预设及有效线程数，关闭后仍可读取。码率采用 ABR 与相同的 VBV maxrate，VBV 容量为 250ms 且至少一个帧周期，关闭 filler／HRD；该容量不是输出等待队列。bit/s 到 kbit/s 向下取整，GOP 为配置 FPS 的两倍，运行中不自动切换预设或线程数。
 
-关闭 cgo 或不支持的平台可以编译 Go API，能力返回不支持。支持平台必须提供私有 SDK 和本机编译器。正式依赖在首个 Go 库版本发布后固定到实际版本；本地通过相邻仓库 workspace，产品构建通过源码锁和临时 modfile 接入，不使用不存在的远程版本。
+关闭 cgo 或不支持的平台可以编译 Go API，能力返回不支持。支持平台必须提供私有 SDK 和本机编译器。独立消费方固定到实际发布的 Go 库版本；本地通过相邻仓库 workspace，产品构建通过源码锁和临时 modfile 接入，不改写源码仓库依赖。
 
 ## HDR 色彩处理
 
