@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .layout import PROJECT_ROOT, TOOLS_ROOT
 from .platforms import TARGETS
+from .sdk_recipe import matches_recipe, recipe_hash as build_recipe_hash
 from .sources import source_lock, validate_source_lock
 from .symbols import ARCHIVES, HEADER, PREFIX
 
@@ -48,14 +49,7 @@ def sdk_fingerprint(directory):
 
 
 def recipe_hash():
-    digest = hashlib.sha256()
-    # WindowsPath 默认按大小写不敏感排序，必须用统一的 POSIX 相对名生成跨平台摘要。
-    for path in sorted(TOOLS_ROOT.rglob("*"), key=lambda item: item.relative_to(PROJECT_ROOT).as_posix()):
-        if path.is_file() and (path.suffix in (".py", ".cmake", ".json", ".in", ".c", ".cc", ".m", ".mm", ".h", ".go", ".md")
-                               or path.name == "CMakeLists.txt"):
-            digest.update(path.relative_to(PROJECT_ROOT).as_posix().encode() + b"\0")
-            digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
-    return digest.hexdigest()
+    return build_recipe_hash(TOOLS_ROOT)
 
 
 def source_record(status_log=None):
@@ -94,9 +88,9 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
     if data.get("sources") != lock:
         raise ValueError("SDK dependency lock mismatch")
     # 常规 CI 校验已有 SDK 的完整性，允许它暂时落后于尚未重建的源码配方。
-    # 构建、安装和发布仍必须与当前配方及依赖锁完全一致。
-    if current_recipe and (recipe != recipe_hash() or lock != source_lock()):
-        raise ValueError("SDK source lock or recipe mismatch; rebuild the SDK")
+    # 构建、安装和发布仍核对生产输入及依赖锁；文档、测试不参与生产输入摘要。
+    if current_recipe and lock != source_lock():
+        raise ValueError("SDK source lock mismatch; rebuild the SDK")
     recorded_commit = data.get("source_commit")
     if (not isinstance(data.get("source_dirty"), bool)
             or (recorded_commit is None and data["source_dirty"] is not True)
@@ -107,6 +101,8 @@ def verify_manifest(directory, target, source_commit=None, *, current_recipe=Tru
             not re.fullmatch(r"[0-9a-f]{40}", source_commit)
             or data.get("source_commit") != source_commit or data.get("source_dirty") is not False):
         raise ValueError("SDK was not built from the selected clean commit")
+    if current_recipe and not matches_recipe(TOOLS_ROOT, data, recipe_hash()):
+        raise ValueError("SDK build recipe mismatch; rebuild the SDK")
     libraries = tuple(ARCHIVES.values())
     isolation = data.get("isolation", {})
     if (not isinstance(isolation, dict) or isolation.get("version") != 1

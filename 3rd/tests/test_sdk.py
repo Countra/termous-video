@@ -13,6 +13,7 @@ from unittest.mock import patch
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 from lib import sdk_install, sdk_manifest
+from lib.sdk_recipe import ALGORITHM
 from lib.platforms import TARGETS
 from lib.sources import source_lock
 from placebo_fixture import fixture as placebo_fixture
@@ -360,6 +361,35 @@ class SDKTests(unittest.TestCase):
                 sdk_install.install_sdk(TARGETS[0], staged)
         self.assertFalse((self.root / "sdk" / TARGETS[0]).exists())
 
+    def test_legacy_compatibility_preserves_source_payload_and_lock_checks(self):
+        staged = self.build / "sdk"
+        fixture(staged, TARGETS[0])
+        current = sdk_manifest.recipe_hash()
+        manifest = staged / "manifest.json"
+        data = json.loads(manifest.read_text())
+        data["recipe_sha256"] = "2" * 64
+        tools = self.root / "tools"
+        tools.mkdir()
+        (tools / "sdk-recipe-compat.json").write_text(json.dumps({
+            "schema": 1, "algorithm": ALGORITHM,
+            "legacy": [{"source_commit": COMMIT, "recipe_sha256": data["recipe_sha256"],
+                        "inputs_sha256": current}]}), encoding="utf-8")
+        manifest.write_text(json.dumps(data), encoding="utf-8")
+        with patch.object(sdk_manifest, "TOOLS_ROOT", tools), \
+                patch.object(sdk_manifest, "recipe_hash", return_value=current):
+            sdk_manifest.verify_manifest(staged, TARGETS[0], COMMIT)
+            with self.assertRaisesRegex(ValueError, "selected clean commit"):
+                sdk_manifest.verify_manifest(staged, TARGETS[0], "3" * 40)
+            (staged / "include/libyuv.h").write_bytes(b"corrupt")
+            with self.assertRaisesRegex(ValueError, "digest"):
+                sdk_manifest.verify_manifest(staged, TARGETS[0])
+            data["sources"]["x264"]["version"] = "different"
+            (staged / "build-lock.json").write_text(json.dumps(data["sources"]), encoding="utf-8")
+            data["files"] = sdk_manifest.inventory(staged)
+            manifest.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source lock mismatch"):
+                sdk_manifest.verify_manifest(staged, TARGETS[0])
+
     def test_installed_sdk_audit_detects_corruption(self):
         installed = self.root / "sdk" / TARGETS[0]
         fixture(installed, TARGETS[0])
@@ -390,11 +420,12 @@ class SDKTests(unittest.TestCase):
     def test_recipe_digest_tracks_objective_c_sources(self):
         recipe = self.root / "recipe"
         recipe.mkdir()
+        (recipe / "cmake").mkdir()
         with patch.object(sdk_manifest, "TOOLS_ROOT", recipe), \
                 patch.object(sdk_manifest, "PROJECT_ROOT", self.root):
             previous = sdk_manifest.recipe_hash()
             for name in ("probe.m", "probe.mm"):
-                (recipe / name).write_text("int probe(void) { return 1; }\n")
+                (recipe / "cmake" / name).write_text("int probe(void) { return 1; }\n")
                 current = sdk_manifest.recipe_hash()
                 self.assertNotEqual(previous, current)
                 previous = current

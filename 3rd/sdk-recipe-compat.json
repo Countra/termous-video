@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "algorithm": "termous-video-sdk-inputs-v2",
+  "legacy": [
+    {
+      "source_commit": "1d7d009f24469ba23a7b45765d77c101b1df070f",
+      "recipe_sha256": "4b9e826145e95d772ac1aed358918951516557160c7575a524732e0bc9812316",
+      "inputs_sha256": "d81f11fee24eca4d17505d4a3d28c8580736847e793a842d323801354253fbff"
+    }
+  ]
+}
